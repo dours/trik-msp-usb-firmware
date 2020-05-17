@@ -69,6 +69,49 @@ char nl[2] = "\n";
 uint16_t count;                    
 
 
+void initAdc() { 
+  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_32);
+  ADC10_A_enable(ADC10_A_BASE); 
+  ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
+  ADC10_A_configureMemory(ADC10_A_BASE, ADC10_A_INPUT_A3, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
+  ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
+  ADC10_A_enableInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INT); 
+  ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
+}
+
+
+// a circular buffer for ADC samples 
+#define ADC_BUF_SIZE (128)
+struct {
+  int16_t buf[ADC_BUF_SIZE]; 
+  uint8_t head, tail; // head is first occupied, tail is first unoccupied
+  bool overflow; 
+} adcBuf; 
+void adcBufInit() { adcBuf.head = adcBuf.tail = 0; adcBuf.overflow = false; }
+uint8_t adcBufNext(uint8_t x) { 
+  uint8_t nextValue = x + 1;
+  if (nextValue == ADC_BUF_SIZE) return 0; else return nextValue; 
+}
+void adcBufAddSample(int16_t sample) { 
+  adcBuf.buf[adcBuf.tail] = sample; 
+  adcBuf.tail = adcBufNext(adcBuf.tail); 
+  if (adcBuf.tail == adcBuf.head) adcBuf.overflow = true; 
+}
+uint8_t adcBufSize() { 
+  if (adcBuf.tail >= adcBuf.head) return adcBuf.tail - adcBuf.head; 
+  else return (ADC_BUF_SIZE - adcBuf.head) + adcBuf.tail; 
+}
+bool adcBufIsEmpty() { return adcBuf.head == adcBuf.tail; } 
+void adcBufSendPacket() { 
+  bool oneChunk = adcBuf.tail >= adcBuf.head; 
+  uint8_t size = (oneChunk) ? (adcBuf.tail - adcBuf.head) : (ADC_BUF_SIZE - adcBuf.head); 
+  size = (size > 32) ? 32 : size; // sendData can send more, but we do not want to delay recieving too much 
+  USBCDC_sendDataInBackground((uint8_t*)(adcBuf.buf + adcBuf.head), size * 2, CDC0_INTFNUM, 0); // if it hangs (it shouldn't), just reboot the MSP
+  adcBuf.head += size; 
+  if (adcBuf.head == ADC_BUF_SIZE) adcBuf.head = 0; 
+}
+  
+
 /*----------------------------------------------------------------------------+
  | Main Routine                                                                |
  +----------------------------------------------------------------------------*/
@@ -79,11 +122,13 @@ void main (void)
     // Minimum Vcore setting required for the USB API is PMM_CORE_LEVEL_2 .
     PMM_setVCore(PMM_CORE_LEVEL_2);
 
-    USBHAL_initPorts();           // Config GPIOS for low-power (output low)
+// TODO: is this okay for TRIK?    USBHAL_initPorts();           // Config GPIOS for low-power (output low)
     USBHAL_initClocks(8000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
 
     __enable_interrupt();  // Enable interrupts globally
+    adcBufInit(); 
+    initAdc(); 
 
     while (1)
     {
@@ -96,7 +141,8 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
-            
+                if (!adcBufIsEmpty()) adcBufSendPacket(); 
+#if 0 
                 // Sleep if there are no bytes to process.
                 __disable_interrupt();
                 if (!USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM)) {
@@ -107,9 +153,10 @@ void main (void)
 
                 __enable_interrupt();
 
+#endif
                 // Exit LPM because of a data-receive event, and
                 // fetch the received data
-                if (bCDCDataReceived_event){
+                if (USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM)) {
                 
                     // Clear flag early -- just in case execution breaks
                     // below because of an error
@@ -118,7 +165,7 @@ void main (void)
                     count = USBCDC_receiveDataInBuffer((uint8_t*)dataBuffer,
                         BUFFER_SIZE,
                         CDC0_INTFNUM);
-
+#if 0 
                     // Count has the number of bytes received into dataBuffer
                     // Echo back to the host.
                     if (USBCDC_sendDataInBackground((uint8_t*)dataBuffer,
@@ -127,6 +174,7 @@ void main (void)
                         SendError = 0x01;
                         break;
                     }
+#endif
                 }
                 break;
                 
@@ -155,6 +203,16 @@ void main (void)
         }
     }  //while(1)
 }                               // main()
+
+
+int16_t testCounter = 0;
+void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void) {
+  int16_t value = ADC10MEM0; // ADC10_A_getResults(ADC10_A_BASE);
+  ++testCounter;
+//  ADC10_A_clearInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INTFLAG); 
+  adcBufAddSample(value); 
+  adcBufAddSample(testCounter); 
+}
 
 /*  
  * ======== UNMI_ISR ========
