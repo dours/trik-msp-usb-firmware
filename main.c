@@ -141,7 +141,7 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
-                if (!adcBufIsEmpty()) adcBufSendPacket(); 
+                while (!adcBufIsEmpty()) adcBufSendPacket(); 
 #if 0 
                 // Sleep if there are no bytes to process.
                 __disable_interrupt();
