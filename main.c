@@ -82,7 +82,7 @@ void initAdc() {
 
 // a circular buffer for ADC samples 
 #define ADC_BUF_SIZE (128)
-struct {
+volatile struct {
   int16_t buf[ADC_BUF_SIZE]; 
   uint8_t head, tail; // head is first occupied, tail is first unoccupied
   bool overflow; 
