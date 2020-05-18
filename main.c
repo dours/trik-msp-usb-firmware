@@ -134,6 +134,7 @@ int8_t	execReadCmd(uint8_t reg, uint8_t* data);
 uint8_t continuousBuffer[MAX_CMD_SIZE]; 
 // says whether it managed to execute a command 
 bool extractAndExecCmd(struct CircularBuffer* b) { 
+  if (cirBufIsEmpty(b)) return false; 
   uint8_t head = b->buf[b->head];
   uint8_t len = head >> 1; // total length of the command including the len byte
   if (len > cirBufOccupied(b)) return false; // only a fraction of a packet is available now
