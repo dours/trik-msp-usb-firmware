@@ -81,37 +81,43 @@ void initAdc() {
 
 
 // a circular buffer for ADC samples 
-#define ADC_BUF_SIZE (128)
-volatile struct {
-  int16_t buf[ADC_BUF_SIZE]; 
+#define CIRCULAR_BUFFER_SIZE (128)
+struct CircularBuffer {
+  uint8_t buf[CIRCULAR_BUFFER_SIZE]; 
   uint8_t head, tail; // head is first occupied, tail is first unoccupied
-  bool overflow; 
-} adcBuf; 
-void adcBufInit() { adcBuf.head = adcBuf.tail = 0; adcBuf.overflow = false; }
-uint8_t adcBufNext(uint8_t x) { 
-  uint8_t nextValue = x + 1;
-  if (nextValue == ADC_BUF_SIZE) return 0; else return nextValue; 
+//  bool overflow; 
+}; 
+void cirBufInit(struct CircularBuffer* b) { b->head = b->tail = 0; /* b->overflow = false; */ }
+uint8_t cirBufNext(uint8_t x, uint8_t a) { 
+  uint8_t nextValue = x + a;
+  if (nextValue >= CIRCULAR_BUFFER_SIZE) return nextValue - CIRCULAR_BUFFER_SIZE; else return nextValue; 
 }
-void adcBufAddSample(int16_t sample) { 
-  adcBuf.buf[adcBuf.tail] = sample; 
-  adcBuf.tail = adcBufNext(adcBuf.tail); 
-  if (adcBuf.tail == adcBuf.head) adcBuf.overflow = true; 
+void cirBufAddSample(struct CircularBuffer* b, int16_t sample) { 
+  b->buf[b->tail] = sample & 0xff;
+  b->buf[b->tail + 1] = (sample >> 8) & 0xff; 
+  b->tail = cirBufNext(b->tail, 2); 
+// TODO: incorrect now  if (b->tail == b->head) b->overflow = true; 
 }
-uint8_t adcBufSize() { 
-  if (adcBuf.tail >= adcBuf.head) return adcBuf.tail - adcBuf.head; 
-  else return (ADC_BUF_SIZE - adcBuf.head) + adcBuf.tail; 
+uint8_t cirBufSize(struct CircularBuffer* b) { 
+  if (b->tail >= b->head) return b->tail - b->head; 
+  else return (CIRCULAR_BUFFER_SIZE - b->head) + b->tail; 
 }
-bool adcBufIsEmpty() { return adcBuf.head == adcBuf.tail; } 
-void adcBufSendPacket() { 
-  bool oneChunk = adcBuf.tail >= adcBuf.head; 
-  uint8_t size = (oneChunk) ? (adcBuf.tail - adcBuf.head) : (ADC_BUF_SIZE - adcBuf.head); 
-  size = (size > 32) ? 32 : size; // sendData can send more, but we do not want to delay recieving too much 
-  USBCDC_sendDataInBackground((uint8_t*)(adcBuf.buf + adcBuf.head), size * 2, CDC0_INTFNUM, 0); // if it hangs (it shouldn't), just reboot the MSP
-  adcBuf.head += size; 
-  if (adcBuf.head == ADC_BUF_SIZE) adcBuf.head = 0; 
+bool cirBufIsEmpty(struct CircularBuffer* b) { return b->head == b->tail; } 
+void cirBufSendPacket(struct CircularBuffer* b) { 
+  bool oneChunk = b->tail >= b->head; 
+  uint8_t size = (oneChunk) ? (b->tail - b->head) : (CIRCULAR_BUFFER_SIZE - b->head); 
+  size = (size > 64) ? 64 : size; // sendData can send more, but we do not want to delay recieving too much 
+  USBCDC_sendDataInBackground((uint8_t*)(b->buf + b->head), size, CDC0_INTFNUM, 0); // if it hangs (it shouldn't), just reboot the MSP
+  b->head += size; 
+  if (b->head == CIRCULAR_BUFFER_SIZE) b->head = 0; 
 }
-  
+ 
+volatile struct CircularBuffer adcBuf; 
+struct CircularBuffer rxBuf; 
 
+void	execWriteCmd(uint8_t reg, uint8_t* data, int8_t data_len);	 
+int8_t	execReadCmd(uint8_t reg, uint8_t* data);
+	
 /*----------------------------------------------------------------------------+
  | Main Routine                                                                |
  +----------------------------------------------------------------------------*/
@@ -127,7 +133,8 @@ void main (void)
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
 
     __enable_interrupt();  // Enable interrupts globally
-    adcBufInit(); 
+    cirBufInit(&adcBuf); 
+    cirBufInit(&rxBuf); 
     initAdc(); 
 
     while (1)
@@ -141,7 +148,7 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
-                while (!adcBufIsEmpty()) adcBufSendPacket(); 
+                while (!cirBufIsEmpty(&adcBuf)) cirBufSendPacket(&adcBuf); 
 #if 0 
                 // Sleep if there are no bytes to process.
                 __disable_interrupt();
@@ -210,8 +217,8 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void) {
   int16_t value = ADC10MEM0; // ADC10_A_getResults(ADC10_A_BASE);
   ++testCounter;
 //  ADC10_A_clearInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INTFLAG); 
-  adcBufAddSample(value); 
-  adcBufAddSample(testCounter); 
+  cirBufAddSample(&adcBuf, value); 
+  cirBufAddSample(&adcBuf, testCounter); 
 }
 
 /*  

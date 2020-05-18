@@ -17,16 +17,17 @@ int main() {
   int shift = 16;
   int buf[200]; 
   assert(200 == fread(&buf, 4, 200, f));
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 70000; ++i) {
     uint32_t buf;
     assert(1 == fread(&buf, 4, 1, f));
-    uint32_t nextCounter = buf >> shift;
-    if (i != 0 && i != 1) 
-    //if (counter + 1 != nextCounter) printf("oblom %i %i \n", counter, nextCounter); // 
-      assert(counter + 1 == nextCounter); 
+    uint32_t nextCounter = (buf >> shift) & 0xffff;
+    if (i != 0 && i != 1) {
+      if (((counter + 1) & 0xffff) != nextCounter) fprintf(stderr, "oblom %i %i \n", counter, nextCounter); // 
+      assert(((counter + 1) & 0xffff) == nextCounter); 
+    }
 //    if (i == 1 && counter + 1 != nextCounter) shift = 16 - shift; 
     counter = nextCounter;
-    printf("%08x\n", buf); 
+    fprintf(stderr, "%08x\n", buf); 
   }
 /*  for (int i = 0; i < 3; ++i) { 
     assert(3 == write(fd, strs[i], 3)); 
