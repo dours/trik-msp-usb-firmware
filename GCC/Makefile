@@ -23,6 +23,7 @@ SRC_FILES = \
 ../system_pre_init.c \
 ../hal.c \
 ../main.c \
+../rxtxHandlers.c \
 ../USB_config/UsbIsr.c \
 ../USB_config/descriptors.c \
 ../USB_app/usbConstructs.c \
