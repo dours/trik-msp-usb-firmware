@@ -12,7 +12,7 @@ SUPPORT_FILE_DIRECTORY = /home/trik/msp430-gcc-support-files/include
 DRIVERLIB_DIR = $(USB_BASE)/driverlib/MSP430F5xx_6xx
 MSP430_FILE = $(USB_BASE)/USB_API/msp430USB.ld
 PROJECT_ROOT = $(USB_BASE)/examples/CDC_virtualCOMport/$(EXAMPLE_NAME)
-USB_CONFIG = $(PROJECT_ROOT)/USB_config
+USB_CONFIG = $(PROJECT_ROOT)/USB_config2
 USB_API = $(USB_BASE)/USB_API
 
 
@@ -28,15 +28,8 @@ SRC_FILES = \
 ../USB_config2/descriptors.c \
 ../USB_app/usbConstructs.c \
 ../USB_app/usbEventHandling.c \
-../../../../USB_API/USB_PHDC_API/UsbPHDC.c \
-../../../../USB_API/USB_HID_API/UsbHid.c \
-../../../../USB_API/USB_HID_API/UsbHidReq.c \
-../../../../USB_API/USB_CDC_API/UsbCdc.c \
 ../../../../USB_API/USB_Common/usb.c \
 ../../../../USB_API/USB_Common/usbdma.c \
-../../../../USB_API/USB_MSC_API/UsbMscScsi.c \
-../../../../USB_API/USB_MSC_API/UsbMscStateMachine.c \
-../../../../USB_API/USB_MSC_API/UsbMscReq.c \
 ../../../../driverlib/MSP430F5xx_6xx/dac12_a.c \
 ../../../../driverlib/MSP430F5xx_6xx/usci_b_spi.c \
 ../../../../driverlib/MSP430F5xx_6xx/usci_b_i2c.c \
