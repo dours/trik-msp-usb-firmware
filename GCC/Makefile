@@ -24,8 +24,8 @@ SRC_FILES = \
 ../hal.c \
 ../main.c \
 ../rxtxHandlers.c \
-../USB_config/UsbIsr.c \
-../USB_config/descriptors.c \
+../USB_config2/UsbIsr.c \
+../USB_config2/descriptors.c \
 ../USB_app/usbConstructs.c \
 ../USB_app/usbEventHandling.c \
 ../../../../USB_API/USB_PHDC_API/UsbPHDC.c \
