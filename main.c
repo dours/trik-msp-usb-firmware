@@ -46,17 +46,19 @@
 
 #include "driverlib.h"
 
+#include <USB_API/USB_Common/defMSP430USB.h>
 #include "USB_config/descriptors.h"
 #include "USB_API/USB_Common/device.h"
 #include "USB_API/USB_Common/usb.h"                 // USB-specific functions
-#include "USB_API/USB_CDC_API/UsbCdc.h"
-#include "USB_app/usbConstructs.h"
 
 /*
  * NOTE: Modify hal.h to select a specific evaluation board and customize for
  * your own board.
  */
 #include "hal.h"
+
+// define this to run on the said demo board instead of the actual TRIK board
+#define OLIMEXINO_5510 
 
 // Global flags set by events
 volatile uint8_t bCDCDataReceived_event = FALSE;  // Flag set by event handler to 
@@ -75,89 +77,18 @@ void initAdc() {
 }
 
 
-// a circular buffer for ADC samples 
-#define CIRCULAR_BUFFER_SIZE (128)
-struct CircularBuffer {
-  uint8_t buf[CIRCULAR_BUFFER_SIZE]; 
-  uint8_t head, tail; // head is first occupied, tail is first unoccupied
-//  bool overflow; 
-}; 
-
-void cirBufInit(struct CircularBuffer* b) { b->head = b->tail = 0; /* b->overflow = false; */ }
-
-uint8_t cirBufNext(uint8_t x, uint8_t a) { 
-  uint16_t nextValue = (uint16_t)x + (uint16_t)a;
-  if (nextValue >= CIRCULAR_BUFFER_SIZE) return nextValue - CIRCULAR_BUFFER_SIZE; else return nextValue; 
+uint8_t Ep1InEvent() { 
+  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1);
+  ++(*((uint16_t*)IEP2_X_BUFFER_ADDRESS));
+  USBIEPBCTX_1 = 64; // allow to send another 64 bytes from the X buffer 
+  return 1; 
 }
 
-void cirBufAddSample(struct CircularBuffer* b, int16_t sample) { 
-  b->buf[b->tail] = sample & 0xff;
-  b->buf[b->tail + 1] = (sample >> 8) & 0xff; 
-  b->tail = cirBufNext(b->tail, 2); 
-// TODO: incorrect now  if (b->tail == b->head) b->overflow = true; 
-}
-
-uint8_t cirBufOccupied(struct CircularBuffer* b) { 
-  if (b->tail >= b->head) return b->tail - b->head; 
-  else return (CIRCULAR_BUFFER_SIZE - b->head) + b->tail; 
-}
-
-bool cirBufIsEmpty(struct CircularBuffer* b) { return b->head == b->tail; } 
-uint8_t cirBufContinuousFree(struct CircularBuffer* b) {
-  if (b->tail >= b->head) return (CIRCULAR_BUFFER_SIZE - b->tail - ((b->head == 0) ? 1 : 0));
-  else return (b->head - b->tail - 1); 
-}
-
-void cirBufSendPacket(struct CircularBuffer* b) { 
-  uint8_t size = cirBufContinuousFree(b); 
-  size = (size > 64) ? 64 : size; // sendData can send more, but we do not want to delay recieving too much 
-  USBCDC_sendDataInBackground((uint8_t*)(b->buf + b->head), size, CDC0_INTFNUM, 0); // if it hangs (it shouldn't), just reboot the MSP
-  b->head += size; 
-  if (b->head == CIRCULAR_BUFFER_SIZE) b->head = 0; 
-}
-
-void cirBufRecvPacket(struct CircularBuffer* b) { 
-  if (CIRCULAR_BUFFER_SIZE - cirBufOccupied(b) <= 1) return; 
-  uint8_t size = cirBufContinuousFree(b); 
+uint8_t Ep1OutEvent() { 
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN2);
-  uint8_t count = USBCDC_receiveDataInBuffer(b->buf + b->tail, size, CDC0_INTFNUM);
-  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3);
-  b->tail = cirBufNext(b->tail, count); 
+  return 1; 
 }
- 
-volatile struct CircularBuffer adcBuf; 
-struct CircularBuffer rxBuf; 
 
-void initTest(); 
-void	execWriteCmd(uint8_t reg, uint8_t* data, int8_t data_len);	 
-int8_t	execReadCmd(uint8_t reg, uint8_t* data);
-	
-#define MAX_CMD_SIZE 8 
-uint8_t continuousBuffer[MAX_CMD_SIZE]; 
-// says whether it managed to execute a command 
-bool extractAndExecCmd(struct CircularBuffer* b) { 
-  if (cirBufIsEmpty(b)) return false; 
-  uint8_t head = b->buf[b->head];
-  uint8_t len = head >> 1; // total length of the command including the len byte
-  if (len > cirBufOccupied(b)) return false; // only a fraction of a packet is available now
-  uint8_t* cmd = b->buf + b->head + 2; 
-  if (b->head > b->tail && (len > (CIRCULAR_BUFFER_SIZE - b->head))) { 
-    // now we must make this packet continuous by copying 
-    // to a different buffer. This shouldn't happen too often if the CircularBuffer is much bigger than MAX_CMD_SIZE
-    uint8_t first = CIRCULAR_BUFFER_SIZE - b->head; 
-    memcpy(continuousBuffer, b->buf + b->head, first);
-    memcpy(continuousBuffer + first, b->buf, len - first);
-    cmd = continuousBuffer + 2; 
-  }
-  b->head = cirBufNext(b->head, len); 
-  if (head & 1) { // like in I2C 1 = read, 0 = write
-    uint8_t toSend = execReadCmd(*(cmd - 1), continuousBuffer); 
-    USBCDC_sendDataInBackground(continuousBuffer, toSend, CDC0_INTFNUM, 0); 
-  } else { 
-    execWriteCmd(*(cmd - 1), cmd, len - 2); 
-  }
-  return true; 
-}
 
 /*----------------------------------------------------------------------------+
  | Main Routine                                                                |
@@ -170,16 +101,32 @@ void main (void)
     PMM_setVCore(PMM_CORE_LEVEL_2);
 
 // TODO: is this okay for TRIK?    USBHAL_initPorts();           // Config GPIOS for low-power (output low)
+
+    // we rely on the USB library to handle all the setup packets, configuration requests
+    // and descriptors, but we implement all the actual data transfers by manually programming
+    // the registers of the USB block. This is not an officially supported use of the USB API
+    // (because it only supports HID, CDC, MSC, PHDC USB classes and not a generic 
+    // USB devices with bulk endpoints). 
     USBHAL_initClocks(8000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
+    USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
+    memset(IEP2_X_BUFFER_ADDRESS, 0, 64); 
 
     __enable_interrupt();  // Enable interrupts globally
-    cirBufInit(&adcBuf); 
-    cirBufInit(&rxBuf); 
 //    initAdc();
+
+// We manually configure endpoints 0x01, 0x81 (first endpoint for in and out)
+    USBIEPCNF_1  |= EPCNF_USBIE; 
+    USBIEPBBAX_1 = (IEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3;
+    USBIEPBCTX_1 = 64; // allow to send the first 64 bytes from the X buffer 
+    // an interrupt will be generated after the send completes, the interrupt handler will 
+    // reenable the send operation again and so on 
+
+#ifdef OLIMEXINO_5510
+   // these are used on the olimexino demo board to measure execution time of some parts of the code
    GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
    GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-
+#endif
     while (1)
     {
         uint8_t ReceiveError = 0, SendError = 0;
@@ -192,7 +139,6 @@ void main (void)
             // USB host
             case ST_ENUM_ACTIVE:
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
-                while (!cirBufIsEmpty(&adcBuf)) cirBufSendPacket(&adcBuf); 
 #if 0 
                 // Sleep if there are no bytes to process.
                 __disable_interrupt();
@@ -204,7 +150,6 @@ void main (void)
 
                 __enable_interrupt();
 
-#endif
                 // Exit LPM because of a data-receive event, and
                 // fetch the received data
                 if (USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM) ) {
@@ -215,12 +160,9 @@ void main (void)
 
 		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
 		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1);
-                    cirBufRecvPacket(&rxBuf); 
    		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN4);
-		    while (extractAndExecCmd(&rxBuf)) 
-			GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN5);
-		    ; 
                }
+#endif
                 break;
                 
             // These cases are executed while your device is disconnected from
@@ -255,8 +197,6 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void) {
   int16_t value = ADC10MEM0; // ADC10_A_getResults(ADC10_A_BASE);
   ++testCounter;
 //  ADC10_A_clearInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INTFLAG); 
-  cirBufAddSample(&adcBuf, value); 
-  cirBufAddSample(&adcBuf, testCounter); 
 }
 
 /*  
