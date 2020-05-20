@@ -31,14 +31,15 @@ int main() {
   QSerialPort p("/dev/ttyACM0");
   p.open(QIODevice::ReadWrite);
 
-  for (int i = 0; i < 100; ++i) { 
+  for (int i = 0; i < 1000000; ++i) { 
     auto c { makeGetEncoderValue(i % 4) }; 
     assert(c.size() == p.write(reinterpret_cast<char*>(c.data()), c.size())); 
     assert(p.waitForBytesWritten(100)); 
     int value = 0xcacacaca; 
     assert(p.waitForReadyRead(-1)); 
     assert(4 == p.read(reinterpret_cast<char*>(&value), 4)); 
-    fprintf(stderr, "%08x\n", value);
+    assert(value == (i / 4)); 
+//    fprintf(stderr, "%08x\n", value);
   }
 
   return 0; 

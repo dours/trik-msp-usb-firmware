@@ -119,7 +119,9 @@ void cirBufSendPacket(struct CircularBuffer* b) {
 void cirBufRecvPacket(struct CircularBuffer* b) { 
   if (CIRCULAR_BUFFER_SIZE - cirBufOccupied(b) <= 1) return; 
   uint8_t size = cirBufContinuousFree(b); 
+  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN2);
   uint8_t count = USBCDC_receiveDataInBuffer(b->buf + b->tail, size, CDC0_INTFNUM);
+  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3);
   b->tail = cirBufNext(b->tail, count); 
 }
  
@@ -174,7 +176,9 @@ void main (void)
     __enable_interrupt();  // Enable interrupts globally
     cirBufInit(&adcBuf); 
     cirBufInit(&rxBuf); 
-//    initAdc(); 
+//    initAdc();
+   GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+   GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
 
     while (1)
     {
@@ -187,6 +191,7 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
+		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
                 while (!cirBufIsEmpty(&adcBuf)) cirBufSendPacket(&adcBuf); 
 #if 0 
                 // Sleep if there are no bytes to process.
@@ -208,8 +213,13 @@ void main (void)
                     // below because of an error
                     bCDCDataReceived_event = FALSE;
 
+		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
+		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1);
                     cirBufRecvPacket(&rxBuf); 
-		    while (extractAndExecCmd(&rxBuf)); 
+   		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN4);
+		    while (extractAndExecCmd(&rxBuf)) 
+			GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN5);
+		    ; 
                }
                 break;
                 
