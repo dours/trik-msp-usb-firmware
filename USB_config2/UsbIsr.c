@@ -44,6 +44,9 @@
 #include <string.h>
 #include <USB_API/USB_CDC_API/UsbCdc.h>
 
+uint8_t Ep1InEvent(); 
+uint8_t Ep1OutEvent(); 
+
 /*----------------------------------------------------------------------------+
 | External Variables                                                          |
 +----------------------------------------------------------------------------*/
@@ -165,11 +168,10 @@ void __attribute__ ((interrupt(USB_UBM_VECTOR))) iUsbInterruptHandler(void)
         break;
     case USBVECINT_STPOW_PACKET_RECEIVED:
         break;
-	case USBVECINT_INPUT_ENDPOINT1:
+    case USBVECINT_INPUT_ENDPOINT1:
+        bWakeUp = Ep1InEvent(); 
         break;
     case USBVECINT_INPUT_ENDPOINT2:
-        //send saved bytes from buffer...
-        bWakeUp = CdcToHostFromBuffer(CDC0_INTFNUM);
          break;
     case USBVECINT_INPUT_ENDPOINT3:
         break;
@@ -182,21 +184,9 @@ void __attribute__ ((interrupt(USB_UBM_VECTOR))) iUsbInterruptHandler(void)
     case USBVECINT_INPUT_ENDPOINT7:
 		break;
     case USBVECINT_OUTPUT_ENDPOINT1:
+            bWakeUp = Ep1OutEvent(); 
 	    break;
     case USBVECINT_OUTPUT_ENDPOINT2:
-        //call callback function if no receive operation is underway
-        if (!CdcIsReceiveInProgress(CDC0_INTFNUM) && USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM))
-        {
-            if (wUsbEventMask & USB_DATA_RECEIVED_EVENT)
-            {
-                bWakeUp = USBCDC_handleDataReceived(CDC0_INTFNUM);
-            }
-        }
-        else
-        {
-            //complete receive opereation - copy data to user buffer
-            bWakeUp = CdcToBufferFromHost(CDC0_INTFNUM);
-        }
         break;
     case USBVECINT_OUTPUT_ENDPOINT3:
         break;
