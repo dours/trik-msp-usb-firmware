@@ -50,11 +50,6 @@ extern "C"
 |-----------------------------------------------------------------------------*/
 
 //***********************************************************************************************
-// CDC or HID - Define both for composite support
-//***********************************************************************************************
-#define _CDC_          // Needed for CDC inteface
-
-//***********************************************************************************************
 // CONFIGURATION CONSTANTS
 //***********************************************************************************************
 // These constants configure the API stack and help define the USB descriptors.
@@ -63,7 +58,7 @@ extern "C"
 // Configuration Constants that can change
 // #define that relates to Device Descriptor
 #define USB_VID               0x2047    // Vendor ID (VID)
-#define USB_PID               0x0300        // Product ID (PID)
+#define USB_PID               0x0301        // Product ID (PID)
 
 /*----------------------------------------------------------------------------+
 | Firmware Version                                                            |
@@ -81,26 +76,31 @@ extern "C"
 #define PHDC_ENDPOINTS_NUMBER               2  // bulk in, bulk out
 
 
-#define DESCRIPTOR_TOTAL_LENGTH            67            // wTotalLength, This is the sum of configuration descriptor length  + CDC descriptor length  + HID descriptor length
-#define USB_NUM_INTERFACES                  2            //Number of implemented interfaces.
+#define DESCRIPTOR_TOTAL_LENGTH            32            // wTotalLength, This is the sum of configuration descriptor length  + CDC descriptor length  + HID descriptor length
+#define USB_NUM_INTERFACES                  1            //Number of implemented interfaces.
 
-#define CDC0_COMM_INTERFACE                0              // Comm interface number of CDC0
+#define EP_IN 0x81
+#define EP_OUT 0x01
+
+/*#define CDC0_COMM_INTERFACE                0              // Comm interface number of CDC0
 #define CDC0_DATA_INTERFACE                1              // Data interface number of CDC0
 #define CDC0_INTEP_ADDR                    0x81              // Interrupt Endpoint Address of CDC0
 #define CDC0_OUTEP_ADDR                    0x02              // Output Endpoint Address of CDC0
 #define CDC0_INEP_ADDR                    0x82              // Input Endpoint Address of CDC0
-
-#define CDC_NUM_INTERFACES                   1           //  Total Number of CDCs implemented. should set to 0 if there are no CDCs implemented.
+*/
+#define CDC_NUM_INTERFACES                   0           //  Total Number of CDCs implemented. should set to 0 if there are no CDCs implemented.
 #define HID_NUM_INTERFACES                   0           //  Total Number of HIDs implemented. should set to 0 if there are no HIDs implemented.
 #define MSC_NUM_INTERFACES                   0           //  Total Number of MSCs implemented. should set to 0 if there are no MSCs implemented.
 #define PHDC_NUM_INTERFACES                  0           //  Total Number of PHDCs implemented. should set to 0 if there are no PHDCs implemented.
+/*
 // Interface numbers for the implemented CDSs and HIDs, This is to use in the Application(main.c) and in the interupt file(UsbIsr.c).
 #define CDC0_INTFNUM                0
 #define MSC_MAX_LUN_NUMBER                   1           // Maximum number of LUNs supported
+*/
 
 #define PUTWORD(x)      ((x)&0xFF),((x)>>8)
-#define USB_OUTEP_INT_EN BIT0 | BIT2 
-#define USB_INEP_INT_EN BIT0 | BIT1 | BIT2 
+#define USB_OUTEP_INT_EN BIT0 | BIT1
+#define USB_INEP_INT_EN BIT0 | BIT1  
 #define USB_USE_INTERNAL_3V3LDO TRUE
 #define USB_XT2_BYPASS_MODE FALSE
 
@@ -122,17 +122,17 @@ extern "C"
 #define USB_SUPPORT_REM_WAKE 0x00
 // Controls whether the application is self-powered to any degree.  Should be
 // set to 0x40, unless the USB device is fully supplied by the bus.
-#define USB_SUPPORT_SELF_POWERED 0x80
+#define USB_SUPPORT_SELF_POWERED 0xC0
 
 // Controls what the device reports to the host regarding how much power it will
 // consume from VBUS.  Expressed in 2mA units; that is, the number of mA
 // communicated is twice the value of this field.
 #define USB_MAX_POWER 0x32
 //Configuration constants that can not change ( Fixed Values)
-#define CDC_CLASS  2
+/*#define CDC_CLASS  2
 #define HID_CLASS  3
 #define MSC_CLASS  4
-#define PHDC_CLASS 5
+#define PHDC_CLASS 5*/
 
 #define MAX_PACKET_SIZE   0x40              // Max size of the USB packets.
 
@@ -328,6 +328,7 @@ struct  abromConfigurationDescriptorGroup
 {
     /* Generic part of config descriptor */
     const struct abromConfigurationDescriptorGenric abromConfigurationDescriptorGenric;
+    uint8_t trivialInterfaceDescriptor[DESCRIPTOR_TOTAL_LENGTH - SIZEOF_CONFIG_DESCRIPTOR]; 
 #ifdef _MSC_
     /* MSC descriptor structure */
     const struct abromConfigurationDescriptorMsc stMsc[MSC_NUM_INTERFACES];
