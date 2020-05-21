@@ -57,8 +57,6 @@
 #include "USB_API/USB_PHDC_API/UsbPHDC.h"
 #endif
 
-//These variables are only example, they are not needed for stack
-extern volatile uint8_t bCDCDataReceived_event;    //data received event
 
 /*
  * If this function gets executed, it's a sign that the output of the USB PLL has failed.
@@ -182,8 +180,6 @@ void USB_handlePLLStartedEvent(void)
 uint8_t USBCDC_handleDataReceived (uint8_t intfNum)
 {
     //TO DO: You can place your code here
-
-    bCDCDataReceived_event = TRUE;
 
     return (TRUE);                              //return FALSE to go asleep after interrupt (in the case the CPU slept before
                                                 //interrupt)
