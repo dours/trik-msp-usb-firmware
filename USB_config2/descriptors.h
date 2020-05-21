@@ -102,7 +102,11 @@ extern "C"
 #define USB_OUTEP_INT_EN BIT0 | BIT1
 #define USB_INEP_INT_EN BIT0 | BIT1  
 #define USB_USE_INTERNAL_3V3LDO TRUE
+#ifdef OLIMEXINO_5510
 #define USB_XT2_BYPASS_MODE FALSE
+#else
+#define USB_XT2_BYPASS_MODE TRUE
+#endif
 
 
 // MCLK frequency of MCU, in Hz
