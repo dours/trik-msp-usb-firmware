@@ -101,7 +101,7 @@ uint8_t Ep1OutEvent() {
 }
 
 
-uint8_t adcStarted = 0; 
+uint8_t initCalled = 0; 
 
 /*----------------------------------------------------------------------------+
  | Main Routine                                                                |
@@ -134,7 +134,7 @@ void main (void)
     // an interrupt will be generated after the send completes, the interrupt handler will 
     // reenable the send operation again and so on 
     USBOEPCNF_1 &= ~EPCNF_DBUF;
-    USBOEPBBAX_1 =  (OEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
+    USBOEPBBAX_1 =  (OEP1_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
     USBOEPCNF_1 |=  EPCNF_USBIE; 
     USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 
@@ -155,7 +155,17 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
-                if (!adcStarted) { adcStarted = 1; initAdc(); } 
+                if (!initCalled) { 
+			initCalled = 1; 
+			initAdc(); 
+			initPowerMotor();
+			encoderInit();
+		} 
+		if (dataReceivedEvent) { 
+			executeMemoryCommandBuffer((void*)OEP1_X_BUFFER_ADDRESS, USBOEPBCTX_1 & 0x7f);
+			dataReceivedEvent = 0;
+			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
+		}
 #ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
 #endif
