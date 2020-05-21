@@ -5,10 +5,8 @@
  *      Author: roma
  */
 
-//#include <assert.h>
 #include <msp430.h>
-#include <msp430f5528.h>
-#include "power_motor.hpp"
+#include "power_motor.h"
 
 #define MAX_POWER_MOTOR 4
 
@@ -24,8 +22,10 @@ volatile struct Encoder encoders[4];
 void encoderInit(){
 	P1DIR &= ~(BIT0|BIT6);
 	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
+#ifndef OLIMEXINO_5510
 	P5DIR |= (BIT3);
 	P5OUT |= (BIT3);
+#endif
 
 	P1IES	&= ~(BIT0|BIT6);
 	P1IE	|= 	(BIT0|BIT6);
@@ -52,9 +52,11 @@ uint16_t 	getHardwareDefence(const uint8_t number){
 }
 int initPowerMotor(){
 	//A1P A1M
+#ifndef OLIMEXINO_5510
 	P5SEL &= ~(BIT4|BIT5);
 	P5OUT &= ~(BIT4|BIT5);
 	P5DIR |= (BIT4|BIT5);
+#endif
 	//B1P B1M
 	P4SEL &= ~(BIT0|BIT1);
 	P4OUT &= ~(BIT0|BIT1);
@@ -116,7 +118,9 @@ int setPeriod(uint16_t period){
 	TA0CCR2 = valueToSet -1;
 	TA0CCR3 = valueToSet -1;
 	TA0CCR4 = valueToSet -1;
+#ifndef OLIMEXINO_5510
 	P5OUT &= ~(BIT4|BIT5);
+#endif
 	P4OUT &= ~(BIT0|BIT1);
 	PJOUT &= ~(BIT0|BIT1|BIT2|BIT3);
 	return 0;
@@ -130,8 +134,10 @@ int setDutyPercent(uint8_t number,int8_t percent){
 				if((percent>0)&&(percent <100)){
 					uint16_t valueToSet = TA0CCR0/100 *(100-percent);
 					TA0CCR1 = valueToSet;
+#ifndef OLIMEXINO_5510
 					P5OUT &= ~(BIT4|BIT5);
 					P5OUT |= (BIT4);
+#endif
 				}
 				else if (( percent<0 )&&(percent>-100)){
 					percent = -percent;
@@ -293,8 +299,13 @@ int setAllMotors(uint8_t *data)
 	return 0;
 }
 
-#pragma vector=PORT1_VECTOR
-__interrupt void P1_ISR (void){
+#if defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__)
+#pragma vector = PORT1_VECTOR
+__interrupt void P1_ISR (void)
+#else 
+void __attribute__ ((interrupt(PORT1_VECTOR))) P1_ISR (void)
+#endif
+{
 	switch(P1IV){
 //		case P1IV_NONE:
 //			break;
@@ -321,8 +332,14 @@ __interrupt void P1_ISR (void){
 	}
 
 }
-#pragma vector=PORT2_VECTOR
-__interrupt void P2_ISR (void){
+
+#if defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__)
+#pragma vector = PORT2_VECTOR
+__interrupt void P2_ISR (void)
+#else 
+void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
+#endif
+{
 	switch(P2IV){
 		case P2IV_NONE:
 			break;
