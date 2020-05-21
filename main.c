@@ -57,8 +57,6 @@
  */
 #include "hal.h"
 
-// define this to run on the said demo board instead of the actual TRIK board
-#define OLIMEXINO_5510 
 
 // Global flags set by events
 volatile uint8_t bCDCDataReceived_event = FALSE;  // Flag set by event handler to 

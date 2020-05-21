@@ -1,4 +1,6 @@
 DEVICE = MSP430F5510
+# define this to run on the said demo board instead of the actual TRIK board
+BOARD=OLIMEXINO_5510
 EXAMPLE_NAME = TRIKFirmware
 USB_BASE = ./../../../..
 REDHAT_GCC = /home/trik/msp430-gcc-8.3.1.25_linux64/
@@ -16,7 +18,7 @@ USB_CONFIG = $(PROJECT_ROOT)/USB_config2
 USB_API = $(USB_BASE)/USB_API
 
 
-CFLAGS = -I $(SUPPORT_FILE_DIRECTORY) -I $(USB_BASE) -I $(DRIVERLIB_DIR) -I $(PROJECT_ROOT) -I $(USB_CONFIG) -I $(USB_API) -D__$(DEVICE)__ -DDEPRECATED -mmcu=msp430f5510 -O3 -Os -g -fdata-sections -w
+CFLAGS = -D$(BOARD) -I $(SUPPORT_FILE_DIRECTORY) -I $(USB_BASE) -I $(DRIVERLIB_DIR) -I $(PROJECT_ROOT) -I $(USB_CONFIG) -I $(USB_API) -D__$(DEVICE)__ -DDEPRECATED -mmcu=msp430f5510 -O3 -Os -g -fdata-sections -w
 LFLAGS = -L $(SUPPORT_FILE_DIRECTORY)  -T $(MSP430_FILE) -T $(SUPPORT_FILE_DIRECTORY)/msp430f5510.ld -Wl,--gc-sections
 
 SRC_FILES = \
