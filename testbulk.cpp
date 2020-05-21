@@ -21,6 +21,7 @@ public:
   MemoryCommands(vector<tmemoryCommand>& v)  {
     static_assert(sizeof(tmemoryCommand) % sizeof(uint16_t) == 0); 
     size = sizeof(uint16_t) + v.size() * sizeof(tmemoryCommand); 
+    assert(size <= 64); 
     data = new uint16_t[size / sizeof(uint16_t)]; 
     data[0] = HEADER_MAGIC;
     memcpy(data + 1, v.data(), v.size() * sizeof(tmemoryCommand)); 
