@@ -12,8 +12,8 @@
 
 enum tmemoryCommandKind { Assign, SetBits, ClearBits }; 
 struct tmemoryCommand { 
-  enum tmemoryCommandKind kind;
-  uint16_t address;
+  uint16_t kind:2;
+  uint16_t address:14;
   uint16_t value;
 };
 
