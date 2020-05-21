@@ -1,0 +1,1 @@
+g++ -std=c++11 -I libusb-1.0 -o testbulk testbulk.cpp  -lusb-1.0
