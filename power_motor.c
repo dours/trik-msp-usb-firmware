@@ -307,23 +307,9 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) P1_ISR (void)
 #endif
 {
 	switch(P1IV){
-//		case P1IV_NONE:
-//			break;
-//		case P1IV_P1IFG0:
-//			break;
 		case P1IV_P1IFG1:
 			hardwareDefense[0]++;
 			break;
-//		case P1IV_P1IFG2:
-//			break;
-//		case P1IV_P1IFG3:
-//			break;
-//		case P1IV_P1IFG4:
-//			break;
-//		case P1IV_P1IFG5:
-//			break;
-//		case P1IV_P1IFG6:
-//			break;
 		case P1IV_P1IFG7:
 			hardwareDefense[3]++;
 			break;
@@ -359,10 +345,6 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
 //			P2IES ^= (BIT1);
 			P2IFG &= ~(BIT1);
 			break;
-//		case P2IV_P1IFG2:
-//			break;
-//		case P2IV_P1IFG3:
-//			break;
 		case P2IV_P2IFG4:
 			if ((P1IN & BIT0)==BIT0)
 				++encoders[1].value;
