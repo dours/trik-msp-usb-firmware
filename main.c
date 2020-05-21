@@ -50,6 +50,7 @@
 #include "USB_config/descriptors.h"
 #include "USB_API/USB_Common/device.h"
 #include "USB_API/USB_Common/usb.h"                 // USB-specific functions
+#include "outBuffer.h"
 
 /*
  * NOTE: Modify hal.h to select a specific evaluation board and customize for
@@ -67,17 +68,17 @@ volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to
                                                // indicate data has been 
                                                // received into USB buffer
 
-#define ADC_CHANNELS_SAMPLED (11)
+volatile struct OutBuffer* const theOutBuffer = (struct OutBuffer*)IEP2_X_BUFFER_ADDRESS;
+
+// this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
-volatile uint16_t* seqno; 
 void initAdc() { 
   bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_8);
   ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
-  adcBufferOffset= IEP2_X_BUFFER_ADDRESS;
-  seqno          = IEP2_X_BUFFER_ADDRESS + 2*ADC_CHANNELS_SAMPLED;
+  adcBufferOffset= theOutBuffer->adcBuffer;
   ADC10_A_enableInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INT); 
   ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
 }
@@ -133,7 +134,7 @@ void main (void)
     // an interrupt will be generated after the send completes, the interrupt handler will 
     // reenable the send operation again and so on 
     USBOEPCNF_1 &= ~EPCNF_DBUF;
-    USBOEPBAX_1 =  (OEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
+    USBOEPBBAX_1 =  (OEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
     USBOEPCNF_1 |=  EPCNF_USBIE; 
     USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 
@@ -220,9 +221,9 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
 {
   *(adcBufferOffset) = ADC10MEM0;
   ++adcBufferOffset;
-  if (adcBufferOffset == IEP2_X_BUFFER_ADDRESS + sizeof(uint16_t) * ADC_CHANNELS_SAMPLED) {
-      adcBufferOffset = IEP2_X_BUFFER_ADDRESS;         
-      ++(*seqno);
+  if (adcBufferOffset == (theOutBuffer->adcBuffer) + ADC_CHANNELS_SAMPLED) {
+      adcBufferOffset = (theOutBuffer->adcBuffer);         
+      ++(theOutBuffer->seqno);
   }
 #ifdef OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3); // to measure timing 

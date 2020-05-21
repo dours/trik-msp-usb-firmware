@@ -7,19 +7,16 @@
 
 #include <msp430.h>
 #include "power_motor.h"
+#include "outBuffer.h"
 
 #define MAX_POWER_MOTOR 4
 
 volatile uint32_t hardwareDefense[4];
 
-struct Encoder{
-	int32_t value;
-	int8_t type;
-};
-volatile struct Encoder encoders[4];
-
+volatile Encoder* encoders; 
 
 void encoderInit(){
+        encoders = &(theOutBuffer->encoders);
 	P1DIR &= ~(BIT0|BIT6);
 	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
 #ifndef OLIMEXINO_5510
@@ -37,11 +34,7 @@ void encoderInit(){
 
 }
 void resetEncoder(const uint8_t number){
-	encoders[number].value = 0;
-}
-uint32_t getEncoderValue(const uint8_t number){
-	uint32_t value = encoders[number].value;
-	return value;
+	encoders[number] = 0;
 }
 uint16_t 	getHardwareDefence(const uint8_t number){
 	uint16_t value = 0;
@@ -137,33 +130,33 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
 			break;
 		case P2IV_P2IFG0:
 			if ((P2IN & BIT3)==BIT3)
-				++encoders[0].value;
+				++encoders[0];
 			else
-				--encoders[0].value;
+				--encoders[0];
 //			P2IES ^= (BIT0);
 			P2IFG &= ~(BIT0);
 			break;
 		case P2IV_P2IFG1:
 			if ((P1IN & BIT6)==BIT6)
-				++encoders[3].value;
+				++encoders[3];
 			else
-				--encoders[3].value;
+				--encoders[3];
 //			P2IES ^= (BIT1);
 			P2IFG &= ~(BIT1);
 			break;
 		case P2IV_P2IFG4:
 			if ((P1IN & BIT0)==BIT0)
-				++encoders[1].value;
+				++encoders[1];
 			else
-				--encoders[1].value;
+				--encoders[1];
 //			P2IES ^= (BIT4);
 			P2IFG &= ~(BIT4);
 			break;
 		case P2IV_P2IFG5:
 			if ((P2IN & BIT2)==BIT2)
-				++encoders[2].value;
+				++encoders[2];
 			else
-				--encoders[2].value;
+				--encoders[2];
 //			P2IES ^= (BIT5);
 			P2IFG &= ~(BIT5);
 			break;
