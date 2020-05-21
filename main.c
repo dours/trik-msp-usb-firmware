@@ -57,36 +57,50 @@
  */
 #include "hal.h"
 
+// we must know something about the compiler to declare interrupt routines appropriately
+#if ! (defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__) || (defined(__GNUC__) && (__MSP430__)))
+#error Compiler not found!
+#endif
 
 // Global flags set by events
-volatile uint8_t bCDCDataReceived_event = FALSE;  // Flag set by event handler to 
+volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to 
                                                // indicate data has been 
                                                // received into USB buffer
 
-
+#define ADC_CHANNELS_SAMPLED (11)
+volatile uint16_t* adcBufferOffset;
+volatile uint16_t* seqno; 
 void initAdc() { 
-  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_32);
+  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_8);
   ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
-  ADC10_A_configureMemory(ADC10_A_BASE, ADC10_A_INPUT_A3, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
+  ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
+  adcBufferOffset= IEP2_X_BUFFER_ADDRESS;
+  seqno          = IEP2_X_BUFFER_ADDRESS + 2*ADC_CHANNELS_SAMPLED;
   ADC10_A_enableInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INT); 
   ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
 }
 
 
 uint8_t Ep1InEvent() { 
-  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1);
-  ++(*((uint16_t*)IEP2_X_BUFFER_ADDRESS));
+#ifdef OLIMEXINO_5510
+  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1); // to measure timing 
+#endif
   USBIEPBCTX_1 = 64; // allow to send another 64 bytes from the X buffer 
   return 1; 
 }
 
 uint8_t Ep1OutEvent() { 
+#ifdef OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN2);
+#endif
+  dataReceivedEvent = TRUE; 
   return 1; 
 }
 
+
+uint8_t adcStarted = 0; 
 
 /*----------------------------------------------------------------------------+
  | Main Routine                                                                |
@@ -107,18 +121,22 @@ void main (void)
     // USB devices with bulk endpoints). 
     USBHAL_initClocks(8000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
-    USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
     memset(IEP2_X_BUFFER_ADDRESS, 0, 64); 
 
     __enable_interrupt();  // Enable interrupts globally
-//    initAdc();
 
-// We manually configure endpoints 0x01, 0x81 (first endpoint for in and out)
+// We manually configure endpoints 0x01, 0x81 (first endpoint for out and in)
+    USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
     USBIEPCNF_1  |= EPCNF_USBIE; 
     USBIEPBBAX_1 = (IEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3;
     USBIEPBCTX_1 = 64; // allow to send the first 64 bytes from the X buffer 
     // an interrupt will be generated after the send completes, the interrupt handler will 
     // reenable the send operation again and so on 
+    USBOEPCNF_1 &= ~EPCNF_DBUF;
+    USBOEPBAX_1 =  (OEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
+    USBOEPCNF_1 |=  EPCNF_USBIE; 
+    USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
+
 
 #ifdef OLIMEXINO_5510
    // these are used on the olimexino demo board to measure execution time of some parts of the code
@@ -136,7 +154,10 @@ void main (void)
             // This case is executed while your device is enumerated on the
             // USB host
             case ST_ENUM_ACTIVE:
+                if (!adcStarted) { adcStarted = 1; initAdc(); } 
+#ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
+#endif
 #if 0 
                 // Sleep if there are no bytes to process.
                 __disable_interrupt();
@@ -170,8 +191,8 @@ void main (void)
             case ST_PHYS_DISCONNECTED:
             case ST_ENUM_SUSPENDED:
             case ST_PHYS_CONNECTED_NOENUM_SUSP:
-                __bis_SR_register(LPM3_bits + GIE);
-                _NOP();
+//                __bis_SR_register(LPM3_bits + GIE);
+//                _NOP();
                 break;
 
             // The default is executed for the momentary state
@@ -189,28 +210,34 @@ void main (void)
     }  //while(1)
 }                               // main()
 
-
-int16_t testCounter = 0;
-void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void) {
-  int16_t value = ADC10MEM0; // ADC10_A_getResults(ADC10_A_BASE);
-  ++testCounter;
-//  ADC10_A_clearInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INTFLAG); 
+// TODO: a bug exist here: the adc buffer seems to be circular shifted by 2 positions, but why?
+#if defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__)
+#pragma vector = ADC10_VECTOR
+__interrupt void ADC_ISR (void)
+#else 
+void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
+#endif
+{
+  *(adcBufferOffset) = ADC10MEM0;
+  ++adcBufferOffset;
+  if (adcBufferOffset == IEP2_X_BUFFER_ADDRESS + sizeof(uint16_t) * ADC_CHANNELS_SAMPLED) {
+      adcBufferOffset = IEP2_X_BUFFER_ADDRESS;         
+      ++(*seqno);
+  }
+#ifdef OLIMEXINO_5510
+  GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3); // to measure timing 
+#endif
 }
 
-/*  
- * ======== UNMI_ISR ========
- */
 #if defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__)
 #pragma vector = UNMI_VECTOR
 __interrupt void UNMI_ISR (void)
-#elif defined(__GNUC__) && (__MSP430__)
+#else 
 void __attribute__ ((interrupt(UNMI_VECTOR))) UNMI_ISR (void)
-#else
-#error Compiler not found!
 #endif
 {
     switch (__even_in_range(SYSUNIV, SYSUNIV_BUSIFG ))
-    {
+    { 
         case SYSUNIV_NONE:
             __no_operation();
             break;
