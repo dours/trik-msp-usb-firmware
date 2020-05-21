@@ -13,7 +13,7 @@ void executeMemoryCommand(struct tmemoryCommand* c) {
       break;
 
     case ClearBits:
-      *dst &= c->value;
+      *dst &= ~(c->value);
       break;
   }
 }
