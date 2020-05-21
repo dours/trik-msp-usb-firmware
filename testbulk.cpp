@@ -57,8 +57,9 @@ int main() {
   libusb_device_handle* handle = libusb_open_device_with_vid_pid(context, 0x2047, 0x0301);
   assert(handle); 
   assert(0 == libusb_claim_interface(handle, 0));
-  for (int iteration = 0; iteration < 1000; ++iteration) { 
+  for (int iteration = 0; iteration < 100000; ++iteration) { 
     int transferred = -1; 
+#if 0
     unsigned short buf[32]; 
     int error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)buf, 64, &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
@@ -73,17 +74,18 @@ int main() {
     if (iteration == 0) iteration = value; 
     assert(value == (iteration & 0xffff)); 
 #endif
+#endif
   
-    error = libusb_bulk_transfer(handle, 0x01, set1.getBuf(), set1.getSize(), &transferred, 100); 
+    int error = libusb_bulk_transfer(handle, 0x01, set1.getBuf(), set1.getSize(), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
-    assert(64 == transferred);
+    assert(set1.getSize() == transferred);
     usleep(500); 
 
     error = libusb_bulk_transfer(handle, 0x01, clr1.getBuf(), clr1.getSize(), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
-    assert(64 == transferred);
+    assert(clr1.getSize() == transferred);
     usleep(500); 
 
 
