@@ -25,7 +25,8 @@ SRC_FILES = \
 ../system_pre_init.c \
 ../hal.c \
 ../main.c \
-../rxtxHandlers.c \
+../memoryCommand.c \
+../power_motor.c \
 ../USB_config2/UsbIsr.c \
 ../USB_config2/descriptors.c \
 ../USB_app/usbConstructs.c \
