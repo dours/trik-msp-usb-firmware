@@ -11,7 +11,7 @@
 
 #define MAX_POWER_MOTOR 4
 
-volatile uint32_t hardwareDefense[4];
+volatile uint32_t hardwareDefense[MAX_POWER_MOTOR];
 
 volatile Encoder* encoders; 
 
