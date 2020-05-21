@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <vector>
 #include <cstring>
+using namespace std;
 
 extern "C" {
 #include "memoryCommand.h"
@@ -15,7 +16,11 @@ class MemoryCommands {
   int size; 
   uint16_t* data;
 
+  MemoryCommands(MemoryCommands const&); 
+
 public: 
+  MemoryCommands(MemoryCommands&& x) : size(x.size), data(x.data) {} 
+
   MemoryCommands(vector<tmemoryCommand>& v)  {
     static_assert(sizeof(tmemoryCommand) % sizeof(uint16_t) == 0); 
     size = sizeof(uint16_t) + v.size() * sizeof(tmemoryCommand); 
