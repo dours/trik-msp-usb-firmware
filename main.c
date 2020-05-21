@@ -180,18 +180,6 @@ void main (void)
 
                 __enable_interrupt();
 
-                // Exit LPM because of a data-receive event, and
-                // fetch the received data
-                if (USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM) ) {
-                
-                    // Clear flag early -- just in case execution breaks
-                    // below because of an error
-                    bCDCDataReceived_event = FALSE;
-
-		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
-		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1);
-   		    GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN4);
-               }
 #endif
                 break;
                 
