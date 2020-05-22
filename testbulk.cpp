@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include "memoryCommand.hpp"
+#include "hostMotor.h"
 using namespace std; 
 
 tmemoryCommand mkSetBits(uint16_t dst, uint16_t value) { 
@@ -19,6 +20,7 @@ tmemoryCommand mkAssign(uint16_t dst, uint16_t value) {
   tmemoryCommand c { Assign, dst, value }; 
   return c; 
 }
+
 
 int main() { 
   vector<tmemoryCommand> v { mkSetBits(PAOUT, 1 << 4) };
@@ -50,7 +52,7 @@ int main() {
     assert(value == (iteration & 0xffff)); 
 #endif
 #endif
-  
+#if 0   
     int error = libusb_bulk_transfer(handle, 0x01, set1.getBuf(), set1.getSize(), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
@@ -62,7 +64,14 @@ int main() {
     assert(0 == error); 
     assert(clr1.getSize() == transferred);
     usleep(500); 
-
+#endif
+    setPeriod(1000).libusbSend(handle, true); 
+    for (int j = 0; 1; ++j) { 
+      printf("%i\n", j %100); 
+      MemoryCommands(m1.setDutyPercent(j%100)).libusbSend(handle, true); 
+      usleep(300000); 
+    } 
+    return 0; 
 
   }
 }

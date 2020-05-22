@@ -19,5 +19,11 @@ public:
 
 };
 
+extern MSPMotor m0;
+extern MSPMotor m1;
+extern MSPMotor m2;
+extern MSPMotor m3; 
+
+
 #endif
 
