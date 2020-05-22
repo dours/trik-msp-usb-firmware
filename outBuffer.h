@@ -17,11 +17,13 @@
 
 // how many ADC channels do we pass to the host 
 #define ADC_CHANNELS_SAMPLED (11)
+#define N_POWER_MOTOR 4
 
 struct OutBuffer {
   uint16_t adcBuffer[ADC_CHANNELS_SAMPLED];
   uint16_t seqno; 
-  Encoder  encoders[4]; 
+  Encoder  encoders[N_POWER_MOTOR]; 
+  uint16_t hardwareProtectionCounters[N_POWER_MOTOR]; 
 };
 
 extern volatile struct OutBuffer* const theOutBuffer; // = IEP2_X_BUFFER_ADDRESS   

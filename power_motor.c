@@ -18,8 +18,8 @@ volatile Encoder* encoders;
 void encoderInit(){
         encoders = &(theOutBuffer->encoders);
 	P1DIR &= ~(BIT0|BIT6);
-	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
 #ifndef OLIMEXINO_5510
+	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
 	P5DIR |= (BIT3);
 	P5OUT |= (BIT3);
 #endif
@@ -28,21 +28,13 @@ void encoderInit(){
 	P1IE	|= 	(BIT0|BIT6);
 	P1IFG	&=	~(BIT0|BIT6);
 
+#ifndef OLIMEXINO_5510
 	P2IES	&= ~(BIT0|BIT1|BIT4|BIT5);
 	P2IE	|= 	(BIT0|BIT1|BIT4|BIT5);
 	P2IFG	&=	~(BIT0|BIT1|BIT4|BIT5);
+#endif
+}
 
-}
-void resetEncoder(const uint8_t number){
-	encoders[number] = 0;
-}
-uint16_t 	getHardwareDefence(const uint8_t number){
-	uint16_t value = 0;
-	//assert(number<MAX_POWER_MOTOR && number>=0);
-	value = hardwareDefense[number];
-	hardwareDefense[number] = 0;
-	return  value;
-}
 int initPowerMotor(){
 	//A1P A1M
 #ifndef OLIMEXINO_5510
@@ -107,10 +99,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) P1_ISR (void)
 {
 	switch(P1IV){
 		case P1IV_P1IFG1:
-			hardwareDefense[0]++;
+			theOutBuffer->hardwareDefense[0]++;
 			break;
 		case P1IV_P1IFG7:
-			hardwareDefense[3]++;
+			theOutBuffer->hardwareDefense[3]++;
 			break;
 		default:
 			break;
@@ -161,10 +153,10 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
 			P2IFG &= ~(BIT5);
 			break;
 		case P2IV_P2IFG6:
-			hardwareDefense[1]++;
+			theOutBuffer->hardwareDefense[1]++;
 			break;
 		case P2IV_P2IFG7:
-			hardwareDefense[3]++;
+			theOutBuffer->hardwareDefense[3]++;
 			break;
 		default:
 			break;
