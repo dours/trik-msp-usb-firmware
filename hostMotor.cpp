@@ -1,4 +1,4 @@
-#include "memoryCommand.hpp"
+#include "hostMotor.h"
 #include <stdlib.h>
 
 int currentPeriod;
@@ -29,17 +29,7 @@ MemoryCommands setPeriod(uint16_t period){
 	return MemoryCommands(v);
 }
 
-class MSPMotor { 
-  uint16_t timerRegister;
-  uint16_t forwardMask, backwardMask; 
-  uint16_t portOutRegister;
-public:
-
-  MSPMotor(uint16_t timerRegister, uint16_t forwardMask, uint16_t backwardMask, uint16_t portOutRegister) :
-    timerRegister(timerRegister), forwardMask(forwardMask), 
-    backwardMask(backwardMask), portOutRegister(portOutRegister) {} 
-
-  vector<tmemoryCommand> setDutyPercent(int percent) {
+  vector<tmemoryCommand> MSPMotor::setDutyPercent(int percent) {
     uint16_t valueToSet;
     uint16_t clearMask;
     uint16_t setMask;
@@ -77,7 +67,6 @@ public:
     };
     return v;
   }
-};
 
 MSPMotor m0(TA0CCR1, PCOUT, (1 << 4), (1 << 5));
 MSPMotor m1(TA0CCR2, PBOUT, (1 << (0 + 8)), (1 << (1 + 8)));
