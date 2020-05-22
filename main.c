@@ -74,12 +74,12 @@ volatile struct OutBuffer* const theOutBuffer = (struct OutBuffer*)IEP2_X_BUFFER
 volatile uint16_t* adcBufferOffset;
 void initAdc() { 
   bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_8);
-  ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
   adcBufferOffset= theOutBuffer->adcBuffer;
   ADC10_A_enableInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INT); 
+  ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
 }
 
@@ -88,7 +88,7 @@ uint8_t Ep1InEvent() {
 #ifdef OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1); // to measure timing 
 #endif
-  USBIEPBCTX_1 = 64; // allow to send another 64 bytes from the X buffer 
+  USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
   return 1; 
 }
 
@@ -122,18 +122,19 @@ void main (void)
     // USB devices with bulk endpoints). 
     USBHAL_initClocks(8000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
-    memset(IEP2_X_BUFFER_ADDRESS, 0, 64); 
 
     __enable_interrupt();  // Enable interrupts globally
 
 // We manually configure endpoints 0x01, 0x81 (first endpoint for out and in)
     USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
+    USBIEPCNF_1 &= ~EPCNF_TOGGLE;
     USBIEPCNF_1  |= EPCNF_USBIE; 
     USBIEPBBAX_1 = (IEP2_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3;
-    USBIEPBCTX_1 = 64; // allow to send the first 64 bytes from the X buffer 
+    USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send the first 64 bytes from the X buffer 
     // an interrupt will be generated after the send completes, the interrupt handler will 
     // reenable the send operation again and so on 
     USBOEPCNF_1 &= ~EPCNF_DBUF;
+    USBOEPCNF_1 &= ~EPCNF_TOGGLE; // wow I must reset this bit manually or else the first DATA0 packet is lost!
     USBOEPBBAX_1 =  (OEP1_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
     USBOEPCNF_1 |=  EPCNF_USBIE; 
     USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
@@ -157,11 +158,12 @@ void main (void)
             case ST_ENUM_ACTIVE:
                 if (!initCalled) { 
 			initCalled = 1; 
+			memset(IEP2_X_BUFFER_ADDRESS, 0, 64); 
 			initAdc(); 
 			initPowerMotor();
 			encoderInit();
 		} 
-		if (dataReceivedEvent) { 
+		if ((USBOEPBCTX_1 & 0x7f) != 0 && (USBOEPBCTX_1 & 0x80) != 0) { 
 			executeMemoryCommandBuffer((void*)OEP1_X_BUFFER_ADDRESS, USBOEPBCTX_1 & 0x7f);
 			dataReceivedEvent = 0;
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
@@ -219,7 +221,7 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
 {
   *(adcBufferOffset) = ADC10MEM0;
   ++adcBufferOffset;
-  if (adcBufferOffset == (theOutBuffer->adcBuffer) + ADC_CHANNELS_SAMPLED) {
+  if (adcBufferOffset == &(theOutBuffer->seqno)) {
       adcBufferOffset = (theOutBuffer->adcBuffer);         
       ++(theOutBuffer->seqno);
   }
