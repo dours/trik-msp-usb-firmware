@@ -53,6 +53,10 @@ int main() {
     printf("\n"); 
     usleep(100000); 
 #else
+    if (buf.adcOverflowHappened) { 
+    	fprintf(stderr, "buf.adcOverflowHappened, iteration %i, %04x\n", iteration, buf.adcOverflowHappened); 
+	assert(false); 
+    }
     if (0 != iteration) if (!((prevseqno + 1 == buf.seqno) || prevseqno == buf.seqno)) {
       printf("iter %i, prevseqno %04x   buf.seqno %04x\n", iteration, prevseqno , buf.seqno);
 //      assert(false);
