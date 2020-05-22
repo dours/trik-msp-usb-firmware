@@ -171,7 +171,9 @@ void main (void)
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		}
 		if (dataSentEvent) {
+		    __disable_interrupt(); 
 		    memcpy(usbOutBuffer, theOutBuffer, sizeof(struct OutBuffer)); 
+		    __enable_interrupt(); 
                     USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
 		}
 #ifdef OLIMEXINO_5510
