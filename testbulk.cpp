@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "memoryCommand.hpp"
 #include "hostMotor.h"
+#include "outBuffer.h"
 using namespace std; 
 
 tmemoryCommand mkSetBits(uint16_t dst, uint16_t value) { 
@@ -36,35 +37,26 @@ int main() {
   assert(0 == libusb_claim_interface(handle, 0));
   for (int iteration = 0; iteration < 100000; ++iteration) { 
     int transferred = -1; 
-#if 0
-    unsigned short buf[32]; 
-    int error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)buf, 64, &transferred, 100); 
+#if 1
+    OutBuffer buf; 
+    int error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)&buf, sizeof(OutBuffer), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
-    assert(64 == transferred);
+    assert(sizeof(OutBuffer) == transferred);
 #if 1
-    printf("N%i  ", iteration);
-    for (int j = 0; j < 11; ++j) printf("%04x  ", buf[j]); 
+    printf("N%i seq %04x motor protection  ", iteration, buf.seqno);
+    for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.hardwareProtectionCounters[j]); 
+    printf("  ADC  "); 
+    for (int j = 0; j < 11; ++j) printf("%04x  ", buf.adcBuffer[j]); 
     printf("\n"); 
+    usleep(100000); 
 #else
     uint16_t value = (int(buf[1]) << 8) | buf[0];
     if (iteration == 0) iteration = value; 
     assert(value == (iteration & 0xffff)); 
 #endif
 #endif
-#if 0   
-    int error = libusb_bulk_transfer(handle, 0x01, set1.getBuf(), set1.getSize(), &transferred, 100); 
-    if (0 != error) fprintf(stderr, "error = %i\n", error); 
-    assert(0 == error); 
-    assert(set1.getSize() == transferred);
-    usleep(500); 
-
-    error = libusb_bulk_transfer(handle, 0x01, clr1.getBuf(), clr1.getSize(), &transferred, 100); 
-    if (0 != error) fprintf(stderr, "error = %i\n", error); 
-    assert(0 == error); 
-    assert(clr1.getSize() == transferred);
-    usleep(500); 
-#endif
+    #if 0
     setPeriod(1000).libusbSend(handle, true); 
     for (int j = 0; 1; ++j) { 
       printf("%i\n", j %100); 
@@ -72,6 +64,7 @@ int main() {
       usleep(300000); 
     } 
     return 0; 
+    #endif
 
   }
 }
