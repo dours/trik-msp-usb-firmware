@@ -35,6 +35,8 @@ int main() {
   libusb_device_handle* handle = libusb_open_device_with_vid_pid(context, 0x2047, 0x0301);
   assert(handle); 
   assert(0 == libusb_claim_interface(handle, 0));
+  uint16_t prevseqno; 
+  setPeriod(1000).libusbSend(handle, false); 
   for (int iteration = 0; iteration < 100000; ++iteration) { 
     int transferred = -1; 
 #if 1
@@ -43,7 +45,7 @@ int main() {
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
     assert(sizeof(OutBuffer) == transferred);
-#if 1
+#if 0
     printf("N%i seq %04x motor protection  ", iteration, buf.seqno);
     for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.hardwareProtectionCounters[j]); 
     printf("  ADC  "); 
@@ -51,21 +53,21 @@ int main() {
     printf("\n"); 
     usleep(100000); 
 #else
-    uint16_t value = (int(buf[1]) << 8) | buf[0];
-    if (iteration == 0) iteration = value; 
-    assert(value == (iteration & 0xffff)); 
+    if (0 != iteration) if (!((prevseqno + 1 == buf.seqno) || prevseqno == buf.seqno)) {
+      printf("iter %i, prevseqno %04x   buf.seqno %04x\n", iteration, prevseqno , buf.seqno);
+//      assert(false);
+    }
+    prevseqno = buf.seqno; 
 #endif
 #endif
-    #if 0
-    setPeriod(1000).libusbSend(handle, true); 
-    for (int j = 0; 1; ++j) { 
-      printf("%i\n", j %100); 
-      MemoryCommands(m1.setDutyPercent(j%100)).libusbSend(handle, true); 
-      usleep(300000); 
+    #if 1
+    for (int j = 0; j < 1; ++j) { 
+      //printf("%i\n", j %100); 
+      MemoryCommands(m1.setDutyPercent(j%100)).libusbSend(handle, false); 
+      //usleep(300000); 
     } 
-    return 0; 
     #endif
-
   }
+    return 0; 
 }
 
