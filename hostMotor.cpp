@@ -1,10 +1,10 @@
 #include "hostMotor.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 int currentPeriod;
 
 MemoryCommands setPeriod(uint16_t period){
-        currentPeriod = period; 
 	uint16_t valueToSet = period;
 	if (valueToSet < 100){
 		valueToSet = 100;
@@ -13,6 +13,7 @@ MemoryCommands setPeriod(uint16_t period){
 	{
 		valueToSet = 65000;
 	}
+        currentPeriod = valueToSet; 
    
         vector<tmemoryCommand> v { 
   	  mkAssign(TA0CCR0, valueToSet),
@@ -34,7 +35,7 @@ MemoryCommands setPeriod(uint16_t period){
     uint16_t clearMask;
     uint16_t setMask;
     if ((percent>0)&&(percent<100)) {
-      valueToSet = (100 - percent) * currentPeriod / 100; 
+      valueToSet = (100 - percent) * currentPeriod / 100;
       clearMask = forwardMask | backwardMask; 
       setMask = forwardMask; 
     } else if (( percent<0 )&&(percent>-100)){
@@ -68,9 +69,9 @@ MemoryCommands setPeriod(uint16_t period){
     return v;
   }
 
-MSPMotor m0(TA0CCR1, PCOUT, (1 << 4), (1 << 5));
-MSPMotor m1(TA0CCR2, PBOUT, (1 << (0 + 8)), (1 << (1 + 8)));
-MSPMotor m2(TA0CCR3, PJOUT, (1 << 1), (1 << 0));
-MSPMotor m3(TA0CCR4, PJOUT, (1 << 2), (1 << 3)); 
+MSPMotor m0(TA0CCR1, (1 << 4), (1 << 5), PCOUT);
+MSPMotor m1(TA0CCR2, (1 << (0 + 8)), (1 << (1 + 8)), PBOUT);
+MSPMotor m2(TA0CCR3, (1 << 1), (1 << 0), PJOUT);
+MSPMotor m3(TA0CCR4, (1 << 2), (1 << 3), PJOUT); 
 
 
