@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <vector>
 #include <cstring>
+#include <libusb-1.0/libusb.h>
 using namespace std;
 
 extern "C" {
@@ -20,15 +21,8 @@ class MemoryCommands {
 
 public: 
   MemoryCommands(MemoryCommands&& x) : size(x.size), data(x.data) {} 
-
-  MemoryCommands(vector<tmemoryCommand>& v)  {
-    static_assert(sizeof(tmemoryCommand) % sizeof(uint16_t) == 0); 
-    size = sizeof(uint16_t) + v.size() * sizeof(tmemoryCommand); 
-    assert(size <= 64); 
-    data = new uint16_t[size / sizeof(uint16_t)]; 
-    data[0] = HEADER_MAGIC;
-    memcpy(data + 1, v.data(), v.size() * sizeof(tmemoryCommand)); 
-  }
+  MemoryCommands(vector<tmemoryCommand> v); 
+  int libusbSend(libusb_device_handle* handle, bool printError); 
   ~MemoryCommands() { delete[] data; } 
   unsigned char* getBuf() const { return reinterpret_cast<unsigned char*>(data); } 
   int getSize() const { return size; } 
