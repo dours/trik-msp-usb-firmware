@@ -67,8 +67,11 @@
 volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to 
                                                // indicate data has been 
                                                // received into USB buffer
+volatile uint8_t dataSentEvent = FALSE;  
 
-volatile struct OutBuffer* const theOutBuffer = (struct OutBuffer*)IEP2_X_BUFFER_ADDRESS;
+struct OutBuffer* const usbOutBuffer = (struct OutBuffer*)IEP2_X_BUFFER_ADDRESS;
+volatile struct OutBuffer  buf;
+struct OutBuffer* const theOutBuffer = &buf; 
 
 // this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
@@ -88,7 +91,7 @@ uint8_t Ep1InEvent() {
 #ifdef OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1); // to measure timing 
 #endif
-  USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
+  dataSentEvent = TRUE; 
   return 1; 
 }
 
@@ -111,7 +114,7 @@ void main (void)
     WDT_A_hold(WDT_A_BASE); // Stop watchdog timer
 
     // Minimum Vcore setting required for the USB API is PMM_CORE_LEVEL_2 .
-    PMM_setVCore(PMM_CORE_LEVEL_2);
+    PMM_setVCore(PMM_CORE_LEVEL_3);
 
 // TODO: is this okay for TRIK?    USBHAL_initPorts();           // Config GPIOS for low-power (output low)
 
@@ -120,7 +123,7 @@ void main (void)
     // the registers of the USB block. This is not an officially supported use of the USB API
     // (because it only supports HID, CDC, MSC, PHDC USB classes and not a generic 
     // USB devices with bulk endpoints). 
-    USBHAL_initClocks(8000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
+    USBHAL_initClocks(12000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
 
     __enable_interrupt();  // Enable interrupts globally
@@ -158,7 +161,8 @@ void main (void)
             case ST_ENUM_ACTIVE:
                 if (!initCalled) { 
 			initCalled = 1; 
-			memset(IEP2_X_BUFFER_ADDRESS, 0, 64); 
+			memset(usbOutBuffer, 0, sizeof(struct OutBuffer)); 
+			memset(theOutBuffer, 0, sizeof(struct OutBuffer)); 
 			initAdc(); 
 			initPowerMotor();
 			encoderInit();
@@ -167,6 +171,10 @@ void main (void)
 			executeMemoryCommandBuffer((void*)OEP1_X_BUFFER_ADDRESS, USBOEPBCTX_1 & 0x7f);
 			dataReceivedEvent = 0;
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
+		}
+		if (dataSentEvent) {
+		    memcpy(usbOutBuffer, theOutBuffer, sizeof(struct OutBuffer)); 
+                    USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
 		}
 #ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);

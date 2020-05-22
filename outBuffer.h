@@ -25,7 +25,7 @@ struct OutBuffer {
   uint16_t hardwareProtectionCounters[N_POWER_MOTOR]; 
 };
 
-extern volatile struct OutBuffer* const theOutBuffer; // = IEP2_X_BUFFER_ADDRESS   
+extern struct OutBuffer* const theOutBuffer; // = IEP2_X_BUFFER_ADDRESS   
 
 
 #endif
