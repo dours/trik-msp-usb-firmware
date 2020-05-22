@@ -163,7 +163,7 @@ void main (void)
 			initPowerMotor();
 			encoderInit();
 		} 
-		if ((USBOEPBCTX_1 & 0x7f) != 0 && (USBOEPBCTX_1 & 0x80) != 0) { 
+		if (dataReceivedEvent) { 
 			executeMemoryCommandBuffer((void*)OEP1_X_BUFFER_ADDRESS, USBOEPBCTX_1 & 0x7f);
 			dataReceivedEvent = 0;
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
