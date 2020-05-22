@@ -96,10 +96,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) P1_ISR (void)
 {
 	switch(P1IV){
 		case P1IV_P1IFG1:
-			theOutBuffer->hardwareDefense[0]++;
+			theOutBuffer->hardwareProtectionCounters[0]++;
 			break;
 		case P1IV_P1IFG7:
-			theOutBuffer->hardwareDefense[3]++;
+			theOutBuffer->hardwareProtectionCounters[3]++;
 			break;
 		default:
 			break;
@@ -150,10 +150,10 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
 			P2IFG &= ~(BIT5);
 			break;
 		case P2IV_P2IFG6:
-			theOutBuffer->hardwareDefense[1]++;
+			theOutBuffer->hardwareProtectionCounters[1]++;
 			break;
 		case P2IV_P2IFG7:
-			theOutBuffer->hardwareDefense[3]++;
+			theOutBuffer->hardwareProtectionCounters[3]++;
 			break;
 		default:
 			break;
