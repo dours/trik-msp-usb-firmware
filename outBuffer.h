@@ -13,7 +13,6 @@
 // each access and clearing it afterwards. Maybe this is reasonable)
 
 #include <stdint.h>
-#include "power_motor.h"
 
 // how many ADC channels do we pass to the host 
 #define ADC_CHANNELS_SAMPLED (11)
@@ -22,7 +21,7 @@
 struct OutBuffer {
   uint16_t adcBuffer[ADC_CHANNELS_SAMPLED];
   uint16_t seqno; 
-  Encoder  encoders[N_POWER_MOTOR]; 
+  uint16_t  encoders[N_POWER_MOTOR]; 
   uint16_t hardwareProtectionCounters[N_POWER_MOTOR]; 
 };
 
