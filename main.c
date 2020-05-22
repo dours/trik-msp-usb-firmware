@@ -76,7 +76,7 @@ struct OutBuffer* const theOutBuffer = &buf;
 // this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
 void initAdc() { 
-  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_16);
+  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_8);
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
@@ -145,6 +145,9 @@ void main (void)
             // USB host
             case ST_ENUM_ACTIVE:
                 if (!initCalled) { 
+                    int j;
+		    for (j = 0; j < 10000; ++j) _no_operation(); 
+
 			// We manually configure endpoints 0x01, 0x81 (first endpoint for out and in)
 		    USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
 		    USBIEPCNF_1 &= ~EPCNF_TOGGLE;
@@ -171,9 +174,27 @@ void main (void)
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		}
 		if (dataSentEvent) {
-		    __disable_interrupt(); 
-		    memcpy(usbOutBuffer, theOutBuffer, sizeof(struct OutBuffer)); 
-		    __enable_interrupt(); 
+		    // we just want to copy theOutBuffer to usbOutBuffer
+		    // we must disable interrupts before copying for the sake of atomicity
+		    // but if we do this with just one memcpy call then the ADC will overflow by the end 
+		    // of the copying. So we reenable interrupts after each word while working 
+		    // with usbOutBuffer->adcBuffer
+		    int i;
+		    for (i = 0; i < ADC_CHANNELS_SAMPLED; ++i) {
+		      ADC10IE = 0;
+		      usbOutBuffer->adcBuffer[i] = theOutBuffer->adcBuffer[i];
+		      ADC10IE = 1;
+		    }
+		    ADC10IE = 0;
+		    usbOutBuffer->seqno = theOutBuffer->seqno;
+		    usbOutBuffer-> adcOverflowHappened = theOutBuffer->adcOverflowHappened;
+		    ADC10IE = 1;
+		    uint16_t const saveInts = PAIE;
+		    PAIE = 0;
+		    memcpy(usbOutBuffer->encoders, theOutBuffer->encoders, 
+		        sizeof(struct OutBuffer) - ((char*)usbOutBuffer->encoders - (char*)usbOutBuffer)); 
+		    PAIE = saveInts;
+		    
                     USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
 		}
 #ifdef OLIMEXINO_5510
