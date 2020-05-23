@@ -190,7 +190,6 @@ void main (void)
 		    ADC10IE = 0;
 		    _no_operation();
 		    usbOutBuffer->seqno = theOutBuffer.seqno;
-		    usbOutBuffer->seqno2 = theOutBuffer.seqno2;
 		    if (theOutBuffer.adcOverflowHappened) {
   		      usbOutBuffer->adcOverflowHappened = theOutBuffer.adcOverflowHappened;
 		    }
@@ -264,7 +263,6 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
   if (adcBufferOffset == &(theOutBuffer.adcOverflowHappened)) {
       adcBufferOffset = (theOutBuffer.adcBuffer);         
       ++(theOutBuffer.seqno);
-      ++(theOutBuffer.seqno2);
   }
   if (ADC10IFG & ADC10OVIFG) {
     theOutBuffer.adcOverflowHappened = 1; 

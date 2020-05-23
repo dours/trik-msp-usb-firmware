@@ -21,8 +21,7 @@
 struct OutBuffer {
   uint16_t adcBuffer[ADC_CHANNELS_SAMPLED];
   uint16_t adcOverflowHappened; 
-  uint16_t seqno; 
-  uint16_t seqno2;
+  uint32_t seqno; 
   uint32_t  encoders[N_POWER_MOTOR]; 
   uint32_t hardwareProtectionCounters[N_POWER_MOTOR]; 
 };

@@ -23,8 +23,8 @@ tmemoryCommand mkAssign(uint16_t dst, uint16_t value) {
   return c; 
 }
 
-void checkAtomicity(int iteration, uint16_t& prevseqno, uint16_t seqno, char const* name) {
-    if (abs(seqno - prevseqno) > 5 && !(0 == seqno && 0xffff == prevseqno)) {
+void checkAtomicity(int iteration, uint32_t& prevseqno, uint32_t seqno, char const* name) {
+    if (labs(seqno - prevseqno) > 5 ) {
       printf("iter %i, prev%s %04x   %s %04x\n", iteration, name, prevseqno, name, seqno);
 //      assert(false);
     }
@@ -43,7 +43,7 @@ int main() {
   libusb_device_handle* handle = libusb_open_device_with_vid_pid(context, 0x2047, 0x0301);
   assert(handle); 
   assert(0 == libusb_claim_interface(handle, 0));
-  uint16_t prevseqno, prevseqno2; 
+  uint32_t prevseqno; 
   setPeriod(1000).libusbSend(handle, false); 
   for (int iteration = 0; iteration < 1000000; ++iteration) { 
     int transferred = -1; 
@@ -69,7 +69,6 @@ int main() {
 //	assert(false); 
     }
     checkAtomicity(iteration, prevseqno, buf.seqno, "seqno");
-    checkAtomicity(iteration, prevseqno2, buf.seqno2, "seqno2"); 
 #endif
 #endif
     #if 1
