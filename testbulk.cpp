@@ -45,7 +45,7 @@ int main() {
   assert(0 == libusb_claim_interface(handle, 0));
   uint16_t prevseqno, prevseqno2; 
   setPeriod(1000).libusbSend(handle, false); 
-  for (int iteration = 0; iteration < 10000000; ++iteration) { 
+  for (int iteration = 0; iteration < 1000000; ++iteration) { 
     int transferred = -1; 
 #if 1
     OutBuffer buf; 
