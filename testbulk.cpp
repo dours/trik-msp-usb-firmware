@@ -5,6 +5,7 @@
 #include "memoryCommand.hpp"
 #include "hostMotor.h"
 #include "outBuffer.h"
+#include "math.h"
 using namespace std; 
 
 tmemoryCommand mkSetBits(uint16_t dst, uint16_t value) { 
@@ -22,6 +23,13 @@ tmemoryCommand mkAssign(uint16_t dst, uint16_t value) {
   return c; 
 }
 
+void checkAtomicity(int iteration, uint16_t& prevseqno, uint16_t seqno, char const* name) {
+    if (abs(seqno - prevseqno) > 5 && !(0 == seqno && 0xffff == prevseqno)) {
+      printf("iter %i, prev%s %04x   %s %04x\n", iteration, name, prevseqno, name, seqno);
+//      assert(false);
+    }
+    prevseqno = seqno; 
+}
 
 int main() { 
   vector<tmemoryCommand> v { mkSetBits(PAOUT, 1 << 4) };
@@ -35,16 +43,19 @@ int main() {
   libusb_device_handle* handle = libusb_open_device_with_vid_pid(context, 0x2047, 0x0301);
   assert(handle); 
   assert(0 == libusb_claim_interface(handle, 0));
-  uint16_t prevseqno; 
+  uint16_t prevseqno, prevseqno2; 
   setPeriod(1000).libusbSend(handle, false); 
-  for (int iteration = 0; iteration < 100000; ++iteration) { 
+  for (int iteration = 0; iteration < 10000000; ++iteration) { 
     int transferred = -1; 
 #if 1
     OutBuffer buf; 
     int error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)&buf, sizeof(OutBuffer), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
-    assert(sizeof(OutBuffer) == transferred);
+    if (!(sizeof(OutBuffer) == transferred)) {
+      fprintf(stderr, "%li != %i\n", sizeof(OutBuffer), transferred);
+      assert(false);
+    }
 #if 0
     printf("N%i seq %04x motor protection  ", iteration, buf.seqno);
     for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.hardwareProtectionCounters[j]); 
@@ -55,13 +66,10 @@ int main() {
 #else
     if (buf.adcOverflowHappened) { 
     	fprintf(stderr, "buf.adcOverflowHappened, iteration %i, %04x\n", iteration, buf.adcOverflowHappened); 
-	assert(false); 
+//	assert(false); 
     }
-    if (0 != iteration) if (!((prevseqno + 1 == buf.seqno) || prevseqno == buf.seqno)) {
-      printf("iter %i, prevseqno %04x   buf.seqno %04x\n", iteration, prevseqno , buf.seqno);
-//      assert(false);
-    }
-    prevseqno = buf.seqno; 
+    checkAtomicity(iteration, prevseqno, buf.seqno, "seqno");
+    checkAtomicity(iteration, prevseqno2, buf.seqno2, "seqno2"); 
 #endif
 #endif
     #if 1
