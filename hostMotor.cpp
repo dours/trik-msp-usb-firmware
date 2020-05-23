@@ -30,7 +30,7 @@ MemoryCommands setPeriod(uint16_t period){
 	return MemoryCommands(v);
 }
 
-  vector<tmemoryCommand> MSPMotor::setDutyPercent(int percent) {
+  vector<tmemoryCommand> MSPMotor::mkSetDutyPercent(int percent) const {
     uint16_t valueToSet;
     uint16_t clearMask;
     uint16_t setMask;
@@ -69,9 +69,5 @@ MemoryCommands setPeriod(uint16_t period){
     return v;
   }
 
-MSPMotor m0(TA0CCR1, (1 << 4), (1 << 5), PCOUT);
-MSPMotor m1(TA0CCR2, (1 << (0 + 8)), (1 << (1 + 8)), PBOUT);
-MSPMotor m2(TA0CCR3, (1 << 1), (1 << 0), PJOUT);
-MSPMotor m3(TA0CCR4, (1 << 2), (1 << 3), PJOUT); 
 
 

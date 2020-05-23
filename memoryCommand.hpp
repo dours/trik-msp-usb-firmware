@@ -22,7 +22,7 @@ class MemoryCommands {
 public: 
   MemoryCommands(MemoryCommands&& x) : size(x.size), data(x.data) {} 
   MemoryCommands(vector<tmemoryCommand> v); 
-  int libusbSend(libusb_device_handle* handle, bool printError); 
+  void libusbSend(libusb_device_handle* handle, bool printError); 
   ~MemoryCommands() { delete[] data; } 
   unsigned char* getBuf() const { return reinterpret_cast<unsigned char*>(data); } 
   int getSize() const { return size; } 

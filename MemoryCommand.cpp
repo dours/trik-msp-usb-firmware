@@ -1,4 +1,5 @@
 #include "memoryCommand.hpp"
+#include "MSPOverUSB.h"
 #include <cstdio>
 
   MemoryCommands::MemoryCommands(vector<tmemoryCommand> v)  {
@@ -10,7 +11,7 @@
     memcpy(data + 1, v.data(), v.size() * sizeof(tmemoryCommand)); 
   }
 
-  int MemoryCommands::libusbSend(libusb_device_handle* handle, bool printError) {
+  void MemoryCommands::libusbSend(libusb_device_handle* handle, bool printError) {
     int transferred = -1; 
     if (printError) {
       printf("sending "); 
@@ -19,7 +20,23 @@
     }
     int error = libusb_bulk_transfer(handle, 0x01, getBuf(), getSize(), &transferred, 100); 
     if (printError && 0 != error) fprintf(stderr, "error = %i\n", error); 
-    if (error) return error; 
-    assert(getSize() == transferred);
-    return 0; 
+    if (error) throw libusb_exception{error, false}; 
+    if (getSize() != transferred) throw runtime_error("failed to send a whole USB packet. Why?"); 
   }
+
+
+tmemoryCommand mkSetBits(uint16_t dst, uint16_t value) { 
+  tmemoryCommand c { SetBits, dst, value }; 
+  return c; 
+}
+
+tmemoryCommand mkClearBits(uint16_t dst, uint16_t value) { 
+  tmemoryCommand c { ClearBits, dst, value }; 
+  return c; 
+}
+
+tmemoryCommand mkAssign(uint16_t dst, uint16_t value) { 
+  tmemoryCommand c { Assign, dst, value }; 
+  return c; 
+}
+

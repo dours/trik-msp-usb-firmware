@@ -1,6 +1,9 @@
 #pragma once 
-#include "OutBuffer.h"
+#include "outBuffer.h"
 #include <array>
+#include <vector>
+#include <libusb-1.0/libusb.h>
+#include "hostMotor.h"
 
 struct libusb_exception { 
   int const error; 
@@ -12,8 +15,6 @@ struct libusb_exception {
 struct RawSensorValues {
   // raw values for analog ports A1-A6 are at indexes 0-5 of the returned array
   const std::array<uint16_t, ADC_CHANNELS_SAMPLED> rawAnalogValues;
-  // must be zero. presented for completeness 
-  const uint16_t adcOverflowHappened; 
   // all the analog ports are sampled (once per port) then this counter is incremented
   // and the sampling restarts
   const uint32_t seqno; 
@@ -27,15 +28,18 @@ struct RawSensorValues {
   uint16_t getRawLCDxP() const { return rawAnalogValues[8]; } 
   uint16_t getRawLCDyP() const { return rawAnalogValues[9]; } 
 
-  RawSensorValues(OutBuffer const& b, std::array<uint32_t, N_POWER_MOTOR> const& encoders,
-      std::array<uint32_t, N_POWER_MOTOR> const& hardwareProtectionCounters) : 
-        rawAnalogValues(b.adcBuffer), adcOverflowHappened(b.adcOverflowHappened),
-        encoders(encoders), hardwareProtectionCounters(hardwareProtectionCounters) {}
-
 };
-  
-static_assert(sizeof(RawSensorValues) == sizeof(OutBuffer));
-
+ 
+class MotorHelper { 
+  std::array<std::pair<bool, int8_t>, N_POWER_MOTOR> theArray;
+public:
+  MotorHelper() { for (auto& x : theArray) x.first = false; } 
+  MotorHelper& setPower(int n, int8_t pow) {
+    theArray.at(n) = std::pair<bool, uint8_t>(true, pow);
+    return *this;
+  }
+  std::array<std::pair<bool, int8_t>, N_POWER_MOTOR> finish() const { return theArray; }
+};
 
 class MSPOverUSB { 
 
@@ -44,16 +48,13 @@ class MSPOverUSB {
   MSPOverUSB(MSPOverUSB const &) = delete;
   MSPOverUSB& operator = (MSPOverUSB const&) = delete; 
 
-  libusb_context* context;
-  libusb_device_handle* handle; 
+  libusb_context* usbContext;
+  libusb_device_handle* mspHandle; 
   struct OutBuffer recv; 
-  std::array<uint32_t, N_POWER_MOTORS> encoderZeroes;
-  std::array<uint32_t, N_POWER_MOTORS> hardwareProtectionCountersZeroes;
+  std::array<uint32_t, N_POWER_MOTOR> encoderZeroes;
+  std::array<uint32_t, N_POWER_MOTOR> hardwareProtectionCountersZeroes;
 
-  const MSPMotor m0;
-  const MSPMotor m1;
-  const MSPMotor m2;
-  const MSPMotor m3; 
+  std::array<MSPMotor, N_POWER_MOTOR> const motors;
 
 public:
 
@@ -69,7 +70,7 @@ public:
   RawSensorValues askMSPAndResetCounters(vector<int> const& encoders, vector<int> const& hwps);
 
 
-  void setMotorPowers(std::vector<std::pair<int8_t, int8_t>> const& ); 
+  void setMotorPowers(std::array<std::pair<bool, int8_t>, N_POWER_MOTOR> const& ); 
 
 };
 

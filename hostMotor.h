@@ -15,14 +15,9 @@ public:
     timerRegister(timerRegister), forwardMask(forwardMask), 
     backwardMask(backwardMask), portOutRegister(portOutRegister) {} 
 
-  vector<tmemoryCommand> setDutyPercent(int percent);
+  vector<tmemoryCommand> mkSetDutyPercent(int percent) const;
 
 };
-
-extern MSPMotor m0;
-extern MSPMotor m1;
-extern MSPMotor m2;
-extern MSPMotor m3; 
 
 
 #endif
