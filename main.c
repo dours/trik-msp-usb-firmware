@@ -74,7 +74,7 @@ volatile struct OutBuffer  theOutBuffer;
 // this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
 void initAdc() { 
-  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_4);
+  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_2);
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
@@ -181,20 +181,24 @@ void main (void)
 		    // of the copying. So we reenable interrupts after each word while working 
 		    // with usbOutBuffer->adcBuffer
 		    int i;
-		    for (i = 0; i < ADC_CHANNELS_SAMPLED; ++i) {
+		    for (i = 0; i < (ADC_CHANNELS_SAMPLED & ~1); i+=2) {
 		      ADC10IE = 0;
 		      _no_operation();
 		      usbOutBuffer->adcBuffer[i] = theOutBuffer.adcBuffer[i];
+		      usbOutBuffer->adcBuffer[i+1] = theOutBuffer.adcBuffer[i+1];
 		      ADC10IE = 1;
 		    }
 		    _no_operation();
 		    ADC10IE = 0;
 		    _no_operation();
+		    if (ADC_CHANNELS_SAMPLED & 1) 
+		      usbOutBuffer->adcBuffer[ADC_CHANNELS_SAMPLED-1] = 
+		      		theOutBuffer.adcBuffer[ADC_CHANNELS_SAMPLED-1];
 		    usbOutBuffer->seqno = theOutBuffer.seqno;
-		    if (theOutBuffer.adcOverflowHappened) {
-  		      usbOutBuffer->adcOverflowHappened = theOutBuffer.adcOverflowHappened;
-		    }
 		    ADC10IE = 1;
+  	            if (ADC10IFG & ADC10OVIFG) {
+                        usbOutBuffer->adcOverflowHappened = 1; 
+                    }
 		    uint16_t const saveInts = PAIE;
 		    PAIE = 0;
 	  	    _no_operation();
@@ -265,10 +269,7 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
       adcBufferOffset = (theOutBuffer.adcBuffer);         
       ++(theOutBuffer.seqno);
   }
-  if (ADC10IFG & ADC10OVIFG) {
-    theOutBuffer.adcOverflowHappened = 1; 
-  }
-#if 0
+#if 0 // OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3); // to measure timing 
 #endif
 }
