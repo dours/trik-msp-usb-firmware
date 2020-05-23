@@ -48,8 +48,12 @@ int main() {
   for (int iteration = 0; iteration < 1000000; ++iteration) { 
     int transferred = -1; 
 #if 1
-    OutBuffer buf; 
-    int error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)&buf, sizeof(OutBuffer), &transferred, 100); 
+    OutBuffer buf;
+    // first send an empty packet, then try to read 
+    int error = libusb_bulk_transfer(handle, 0x01, (unsigned char*)&buf, 0, &transferred, 100);
+    if (0 != error) fprintf(stderr, "error = %i\n", error); 
+    assert(0 == error); 
+    error = libusb_bulk_transfer(handle, 0x81, (unsigned char*)&buf, sizeof(OutBuffer), &transferred, 100); 
     if (0 != error) fprintf(stderr, "error = %i\n", error); 
     assert(0 == error); 
     if (!(sizeof(OutBuffer) == transferred)) {

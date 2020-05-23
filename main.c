@@ -67,7 +67,6 @@
 volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to 
                                                // indicate data has been 
                                                // received into USB buffer
-volatile uint8_t dataSentEvent = FALSE;  
 
 struct OutBuffer*  usbOutBuffer = (struct OutBuffer*)&pbXBufferAddressEp81;
 volatile struct OutBuffer  theOutBuffer;
@@ -90,7 +89,6 @@ uint8_t Ep1InEvent() {
 #ifdef OLIMEXINO_5510
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN1); // to measure timing 
 #endif
-  dataSentEvent = TRUE; 
   return 1; 
 }
 
@@ -122,7 +120,7 @@ void main (void)
     // the registers of the USB block. This is not an officially supported use of the USB API
     // (because it only supports HID, CDC, MSC, PHDC USB classes and not a generic 
     // USB devices with bulk endpoints). 
-    USBHAL_initClocks(12000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
+    USBHAL_initClocks(20000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
 
     __enable_interrupt();  // Enable interrupts globally
@@ -167,12 +165,15 @@ void main (void)
 			initPowerMotor();
 			encoderInit();
 		} 
-		if (dataReceivedEvent) { 
+		if (dataReceivedEvent) {
+		  uint8_t size = USBOEPBCTX_1 & 0x7f; 
+		  if (size > 0) { 
 			executeMemoryCommandBuffer((void*)OEP1_X_BUFFER_ADDRESS, USBOEPBCTX_1 & 0x7f);
 			dataReceivedEvent = 0;
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
-		}
-		if (dataSentEvent) {
+		  } 
+		  else if (USBIEPBCTX_1 & 0x80 /* NAK */) {
+		    USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		#if 1
 		    // we just want to copy theOutBuffer to usbOutBuffer
 		    // we must disable interrupts before copying for the sake of atomicity
@@ -205,7 +206,7 @@ void main (void)
 		 #endif
 		    
                     USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
-		    dataSentEvent = FALSE; 
+		  }
 		}
 #ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
