@@ -120,7 +120,7 @@ void main (void)
     // the registers of the USB block. This is not an officially supported use of the USB API
     // (because it only supports HID, CDC, MSC, PHDC USB classes and not a generic 
     // USB devices with bulk endpoints). 
-    USBHAL_initClocks(20000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
+    USBHAL_initClocks(18000000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
     USB_setup(TRUE, TRUE); // Init USB & events; if a host is present, connect
 
     __enable_interrupt();  // Enable interrupts globally
