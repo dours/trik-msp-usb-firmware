@@ -69,9 +69,8 @@ volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to
                                                // received into USB buffer
 volatile uint8_t dataSentEvent = FALSE;  
 
-struct OutBuffer* const usbOutBuffer = (struct OutBuffer*)IEP2_X_BUFFER_ADDRESS;
-volatile struct OutBuffer  buf;
-struct OutBuffer* const theOutBuffer = &buf; 
+struct OutBuffer*  usbOutBuffer = (struct OutBuffer*)&pbXBufferAddressEp81;
+volatile struct OutBuffer  theOutBuffer;
 
 // this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
@@ -80,7 +79,7 @@ void initAdc() {
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
-  adcBufferOffset= theOutBuffer->adcBuffer;
+  adcBufferOffset= theOutBuffer.adcBuffer;
   ADC10_A_enableInterrupt(ADC10_A_BASE, ADC10_A_COMPLETED_INT); 
   ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
@@ -163,7 +162,7 @@ void main (void)
 		    USBOEPCNF_1 |=  EPCNF_USBIE; 
 		    USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		    initCalled = 1; 
-			memset(theOutBuffer, 0, sizeof(struct OutBuffer)); 
+			memset(&theOutBuffer, 0, sizeof(struct OutBuffer)); 
 			initAdc(); 
 			initPowerMotor();
 			encoderInit();
@@ -174,6 +173,7 @@ void main (void)
 			USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		}
 		if (dataSentEvent) {
+		#if 1
 		    // we just want to copy theOutBuffer to usbOutBuffer
 		    // we must disable interrupts before copying for the sake of atomicity
 		    // but if we do this with just one memcpy call then the ADC will overflow by the end 
@@ -182,20 +182,31 @@ void main (void)
 		    int i;
 		    for (i = 0; i < ADC_CHANNELS_SAMPLED; ++i) {
 		      ADC10IE = 0;
-		      usbOutBuffer->adcBuffer[i] = theOutBuffer->adcBuffer[i];
+		      _no_operation();
+		      usbOutBuffer->adcBuffer[i] = theOutBuffer.adcBuffer[i];
 		      ADC10IE = 1;
 		    }
+		    _no_operation();
 		    ADC10IE = 0;
-		    usbOutBuffer->seqno = theOutBuffer->seqno;
-		    usbOutBuffer-> adcOverflowHappened = theOutBuffer->adcOverflowHappened;
+		    _no_operation();
+		    usbOutBuffer->seqno = theOutBuffer.seqno;
+		    usbOutBuffer->seqno2 = theOutBuffer.seqno2;
+		    if (theOutBuffer.adcOverflowHappened) {
+  		      usbOutBuffer->adcOverflowHappened = theOutBuffer.adcOverflowHappened;
+		    }
 		    ADC10IE = 1;
 		    uint16_t const saveInts = PAIE;
 		    PAIE = 0;
-		    memcpy(usbOutBuffer->encoders, theOutBuffer->encoders, 
+	  	    _no_operation();
+		    memcpy(usbOutBuffer->encoders, theOutBuffer.encoders, 
 		        sizeof(struct OutBuffer) - ((char*)usbOutBuffer->encoders - (char*)usbOutBuffer)); 
 		    PAIE = saveInts;
+  	         #else
+	            memcpy(usbOutBuffer, &theOutBuffer, sizeof(struct OutBuffer));
+		 #endif
 		    
                     USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send another 64 bytes from the X buffer 
+		    dataSentEvent = FALSE; 
 		}
 #ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
@@ -250,12 +261,15 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
 {
   *(adcBufferOffset) = ADC10MEM0;
   ++adcBufferOffset;
-  if (adcBufferOffset == &(theOutBuffer->seqno)) {
-      adcBufferOffset = (theOutBuffer->adcBuffer);         
-      ++(theOutBuffer->seqno);
+  if (adcBufferOffset == &(theOutBuffer.adcOverflowHappened)) {
+      adcBufferOffset = (theOutBuffer.adcBuffer);         
+      ++(theOutBuffer.seqno);
+      ++(theOutBuffer.seqno2);
   }
-  if (ADC10IFG & ADC10OVIFG) theOutBuffer->adcOverflowHappened = 1; 
-#ifdef OLIMEXINO_5510
+  if (ADC10IFG & ADC10OVIFG) {
+    theOutBuffer.adcOverflowHappened = 1; 
+  }
+#if 0
   GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN3); // to measure timing 
 #endif
 }
