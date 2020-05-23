@@ -10,10 +10,10 @@
 #include "outBuffer.h"
 
 
-volatile Encoder* encoders; 
+volatile uint32_t* encoders; 
 
 void encoderInit(){
-        encoders = &(theOutBuffer->encoders);
+        encoders = &(theOutBuffer.encoders);
 	P1DIR &= ~(BIT0|BIT6);
 #ifndef OLIMEXINO_5510
 	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
@@ -96,10 +96,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) P1_ISR (void)
 {
 	switch(P1IV){
 		case P1IV_P1IFG1:
-			theOutBuffer->hardwareProtectionCounters[0]++;
+			theOutBuffer.hardwareProtectionCounters[0]++;
 			break;
 		case P1IV_P1IFG7:
-			theOutBuffer->hardwareProtectionCounters[3]++;
+			theOutBuffer.hardwareProtectionCounters[3]++;
 			break;
 		default:
 			break;
@@ -150,10 +150,10 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) P2_ISR (void)
 			P2IFG &= ~(BIT5);
 			break;
 		case P2IV_P2IFG6:
-			theOutBuffer->hardwareProtectionCounters[1]++;
+			theOutBuffer.hardwareProtectionCounters[1]++;
 			break;
 		case P2IV_P2IFG7:
-			theOutBuffer->hardwareProtectionCounters[3]++;
+			theOutBuffer.hardwareProtectionCounters[3]++;
 			break;
 		default:
 			break;

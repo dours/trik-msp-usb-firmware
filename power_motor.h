@@ -9,13 +9,6 @@
 #define POWER_MOTOR_HPP_
 #include <stdint.h>
 
-// Note: true encoder values are 32 bits, but they must be deduced by the host
-// it is not that hard, because encoders for our standard motors tick on the order
-// of 1khz speed, so, the host just need to read the values approx once in a second
-// to check if any value becomes smaller (and increment higher bits accordingly)
-typedef uint16_t Encoder; 
-
-
 struct PwmMotor{
         uint16_t period;
         int8_t percent;
