@@ -11,7 +11,12 @@ MemoryCommands setPeriod(uint16_t period){
 	}
 	else if (valueToSet >0)
 	{
+	// TODO: 
+	// I don't know why we must always set period to such a high value. 
+	// Our "standard" motors tend to vibrate on this setting of PWM 
+	// maybe the driver goes too hot under the max 2.5A load at this high frequency?
 		valueToSet = 65000;
+//		valueToSet = 10000; 
 	}
         currentPeriod = valueToSet; 
    
