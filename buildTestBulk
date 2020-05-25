@@ -1,1 +1,1 @@
-g++ -DOLIMEXINO_5510 -std=c++11 -I libusb-1.0 -o testbulk MSPOverUSB.cpp MemoryCommand.cpp hostMotor.cpp testbulk.cpp  -lusb-1.0
+$CXX -DOLIMEXINO_5510 -std=c++11 -I libusb-1.0 -o testbulk MSPOverUSB.cpp MemoryCommand.cpp hostMotor.cpp testbulk.cpp  -lusb-1.0
