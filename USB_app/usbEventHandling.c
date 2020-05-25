@@ -38,7 +38,7 @@
 
 #include "USB_API/USB_Common/device.h"
 #include "USB_API/USB_Common/defMSP430USB.h"
-#include "USB_config/descriptors.h"
+#include "USB_config2/descriptors.h"
 #include "USB_API/USB_Common/usb.h"
 
 #ifdef _CDC_

@@ -42,7 +42,6 @@
 #include <USB_API/USB_Common/usb.h>           //USB-specific Data Structures
 #include <USB_API/USB_Common/UsbIsr.h>
 #include <string.h>
-#include <USB_API/USB_CDC_API/UsbCdc.h>
 
 uint8_t Ep1InEvent(); 
 uint8_t Ep1OutEvent(); 

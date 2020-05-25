@@ -14,14 +14,15 @@ BSL_SCRIPTER = /home/trik/ti/BSL-Scripter/bsl-scripter-linux-64
 GDB = $(GCC_BIN)/msp430-elf-gdb
 #SUPPORT_FILE_DIRECTORY = $(REDHAT_GCC)/include
 SUPPORT_FILE_DIRECTORY = /home/trik/msp430-gcc-support-files/include
-DRIVERLIB_DIR = $(USB_BASE)/driverlib/MSP430F5xx_6xx
-MSP430_FILE = $(USB_BASE)/USB_API/msp430USB.ld
-PROJECT_ROOT = $(USB_BASE)/examples/CDC_virtualCOMport/$(EXAMPLE_NAME)
+#PROJECT_ROOT = $(USB_BASE)/examples/CDC_virtualCOMport/$(EXAMPLE_NAME)
+PROJECT_ROOT=..
+DRIVERLIB_DIR = $(PROJECT_ROOT)/driverlib/MSP430F5xx_6xx
+MSP430_FILE = $(PROJECT_ROOT)/msp430USB.ld
 USB_CONFIG = $(PROJECT_ROOT)/USB_config2
-USB_API = $(USB_BASE)/USB_API
+USB_API = $(PROJECT_ROOT)/USB_API
 
 
-CFLAGS = -D$(BOARD) -I $(SUPPORT_FILE_DIRECTORY) -I $(USB_BASE) -I $(DRIVERLIB_DIR) -I $(PROJECT_ROOT) -I $(USB_CONFIG) -I $(USB_API) -D__$(DEVICEU)__ -DDEPRECATED -mmcu=$(DEVICEL) -O3 -Os -g -fdata-sections -w
+CFLAGS = -D$(BOARD) -I $(SUPPORT_FILE_DIRECTORY) -I $(USB_API) -I $(DRIVERLIB_DIR) -I $(PROJECT_ROOT) -I $(USB_CONFIG) -D__$(DEVICEU)__ -DDEPRECATED -mmcu=$(DEVICEL) -O3 -Os -g -fdata-sections -w
 LFLAGS = -L $(SUPPORT_FILE_DIRECTORY)  -T $(MSP430_FILE) -T $(SUPPORT_FILE_DIRECTORY)/$(DEVICEL).ld -Wl,--gc-sections
 
 SRC_FILES = \
@@ -33,25 +34,22 @@ SRC_FILES = \
 ../USB_config2/UsbIsr.c \
 ../USB_config2/descriptors.c \
 ../USB_app/usbEventHandling.c \
-../../../../USB_API/USB_Common/usb.c \
-../../../../USB_API/USB_Common/usbdma.c \
-../../../../driverlib/MSP430F5xx_6xx/ucs.c \
-../../../../driverlib/MSP430F5xx_6xx/ldopwr.c \
-../../../../driverlib/MSP430F5xx_6xx/gpio.c \
-../../../../driverlib/MSP430F5xx_6xx/dma.c \
-../../../../driverlib/MSP430F5xx_6xx/wdt_a.c \
-../../../../driverlib/MSP430F5xx_6xx/adc10_a.c \
-../../../../driverlib/MSP430F5xx_6xx/pmm.c \
-../../../../driverlib/MSP430F5xx_6xx/comp_b.c \
-../../../../driverlib/MSP430F5xx_6xx/sysctl.c \
-../../../../driverlib/MSP430F5xx_6xx/mpy32.c \
-../../../../driverlib/MSP430F5xx_6xx/tlv.c \
-../../../../driverlib/MSP430F5xx_6xx/timer_a.c \
-../../../../driverlib/MSP430F5xx_6xx/timer_b.c \
-../../../../driverlib/MSP430F5xx_6xx/ref.c \
-../../../../driverlib/MSP430F5xx_6xx/timer_d.c \
-../../../../driverlib/MSP430F5xx_6xx/adc12_a.c \
-../../../../driverlib/MSP430F5xx_6xx/sfr.c \
+../USB_API/USB_Common/usb.c \
+../USB_API/USB_Common/usbdma.c \
+../driverlib/MSP430F5xx_6xx/ucs.c \
+../driverlib/MSP430F5xx_6xx/ldopwr.c \
+../driverlib/MSP430F5xx_6xx/gpio.c \
+../driverlib/MSP430F5xx_6xx/dma.c \
+../driverlib/MSP430F5xx_6xx/wdt_a.c \
+../driverlib/MSP430F5xx_6xx/adc10_a.c \
+../driverlib/MSP430F5xx_6xx/pmm.c \
+../driverlib/MSP430F5xx_6xx/comp_b.c \
+../driverlib/MSP430F5xx_6xx/sysctl.c \
+../driverlib/MSP430F5xx_6xx/tlv.c \
+../driverlib/MSP430F5xx_6xx/timer_a.c \
+../driverlib/MSP430F5xx_6xx/ref.c \
+../driverlib/MSP430F5xx_6xx/adc12_a.c \
+../driverlib/MSP430F5xx_6xx/sfr.c \
 
 
 $(OUTPUT_NAME).txt: $(OUTPUT_NAME).hex
@@ -63,16 +61,17 @@ $(OUTPUT_NAME).hex : $(OUTPUT_NAME).out
 $(OUTPUT_NAME).out  : $(SRC_FILES)
 	$(CC) $(CFLAGS) $(LFLAGS) $? -o $(OUTPUT_NAME).out
 
-debug: C3_EchoToHost
-	$(GDB) $(OUTPUT_NAME).out
-
 clean: 
-	rm *.out *.hex
+	rm *.out *.hex $(EXAMPLE_NAME)*.txt
 
+# calls a program to flash an MCU via the USB bsl (at least) 
 flash: $(OUTPUT_NAME).hex
 	echo bsl-script | $(BSL_SCRIPTER) 
 
 UNUSED_SRC_FILES = \
+../driverlib/MSP430F5xx_6xx/mpy32.c \
+../driverlib/MSP430F5xx_6xx/timer_b.c \
+../driverlib/MSP430F5xx_6xx/timer_d.c \
 ../../../../driverlib/MSP430F5xx_6xx/eusci_a_spi.c \
 ../../../../driverlib/MSP430F5xx_6xx/battbak.c \
 ../../../../driverlib/MSP430F5xx_6xx/usci_a_spi.c \
