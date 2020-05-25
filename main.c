@@ -243,18 +243,6 @@ void main (void)
 #ifdef OLIMEXINO_5510
 		GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
 #endif
-#if 0 
-                // Sleep if there are no bytes to process.
-                __disable_interrupt();
-                if (!USBCDC_getBytesInUSBBuffer(CDC0_INTFNUM)) {
-                
-                    // Enter LPM0 until awakened by an event handler
-                    __bis_SR_register(LPM0_bits + GIE);
-                }
-
-                __enable_interrupt();
-
-#endif
                 break;
                 
             // These cases are executed while your device is disconnected from
