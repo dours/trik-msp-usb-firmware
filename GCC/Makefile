@@ -1,20 +1,23 @@
-DEVICEU = MSP430F5510
-DEVICEL = msp430f5510
+# set these to compile 
+REDHAT_GCC = /home/trik/msp430-gcc-8.3.1.25_linux64/
+#SUPPORT_FILE_DIRECTORY = $(REDHAT_GCC)/include
+SUPPORT_FILE_DIRECTORY = /home/trik/msp430-gcc-support-files/include
+
+# set this to flash a demo board with the BSL
+BSL_SCRIPTER = /home/trik/ti/BSL-Scripter/bsl-scripter-linux-64
+
 # define this to run on the said demo board instead of the actual TRIK board
-BOARD=OLIMEXINO_5510
+# they are set in the buildall script 
+#DEVICEU = MSP430F5510
+#DEVICEL = msp430f5510
+#BOARD=OLIMEXINO_5510
 #BOARD=TRIK
 EXAMPLE_NAME = TRIKFirmware
 OUTPUT_NAME = $(EXAMPLE_NAME)-$(BOARD)-$(DEVICEL)
-USB_BASE = ./../../../..
-REDHAT_GCC = /home/trik/msp430-gcc-8.3.1.25_linux64/
 GCC_BIN = $(REDHAT_GCC)/bin
 CC = $(GCC_BIN)/msp430-elf-gcc
 OBJCOPY = $(GCC_BIN)/msp430-elf-objcopy
-BSL_SCRIPTER = /home/trik/ti/BSL-Scripter/bsl-scripter-linux-64
 GDB = $(GCC_BIN)/msp430-elf-gdb
-#SUPPORT_FILE_DIRECTORY = $(REDHAT_GCC)/include
-SUPPORT_FILE_DIRECTORY = /home/trik/msp430-gcc-support-files/include
-#PROJECT_ROOT = $(USB_BASE)/examples/CDC_virtualCOMport/$(EXAMPLE_NAME)
 PROJECT_ROOT=..
 DRIVERLIB_DIR = $(PROJECT_ROOT)/driverlib/MSP430F5xx_6xx
 MSP430_FILE = $(PROJECT_ROOT)/msp430USB.ld
