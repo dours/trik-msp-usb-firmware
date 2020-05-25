@@ -58,7 +58,11 @@ extern "C"
 // Configuration Constants that can change
 // #define that relates to Device Descriptor
 #define USB_VID               0x2047    // Vendor ID (VID)
-#define USB_PID               0x0301        // Product ID (PID)
+#ifdef __MSP430F5510
+#define USB_PID               0x0310        // Product ID (PID)
+#elif  defined(__MSP430F5528)          
+#define USB_PID               0x0328        // Product ID (PID)
+#endif
 
 /*----------------------------------------------------------------------------+
 | Firmware Version                                                            |
