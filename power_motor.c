@@ -13,10 +13,13 @@
 volatile uint32_t* encoders; 
 
 void encoderInit(){
-        encoders = &(theOutBuffer.encoders);
+        encoders = theOutBuffer.encoders;
+	P1SEL &= ~(BIT0|BIT6);
 	P1DIR &= ~(BIT0|BIT6);
 #ifndef OLIMEXINO_5510
+	P2SEL &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
 	P2DIR &= ~(BIT0|BIT1|BIT2|BIT3|BIT4|BIT5);
+	P5SEL &= ~BIT3; 
 	P5DIR |= (BIT3);
 	P5OUT |= (BIT3);
 #endif
