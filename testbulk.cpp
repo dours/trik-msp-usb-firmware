@@ -13,32 +13,34 @@ void checkAtomicity(int iteration, uint32_t& prevseqno, uint32_t seqno, char con
     prevseqno = seqno; 
 }
 
-int main() { 
+int main() try { 
 
  MSPOverUSB& msp { MSPOverUSB::get() };
 
  uint32_t prevseqno; 
   for (int iteration = 0; iteration < 1000000; ++iteration) { 
-#if 1
-    auto buf = msp.askMSP(); 
 #if 0
-    printf("N%i seq %04x motor protection  ", iteration, buf.seqno);
-    for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.hardwareProtectionCounters[j]); 
-    printf("  ADC  "); 
-    for (int j = 0; j < 11; ++j) printf("%04x  ", buf.adcBuffer[j]); 
-    printf("\n"); 
-    usleep(100000); 
-#else
+    auto buf = msp.askMSP(); 
     checkAtomicity(iteration, prevseqno, buf.seqno, "seqno");
-#endif
-#endif
-    #if 1
-    for (int j = 0; j < 1; ++j) { 
-      msp.setMotorPowers(MotorHelper().setPower(1, j % 100).finish()); 
-      //usleep(300000); 
+#else
+    for (int j = -100; j < 100; j += 10) { 
+      msp.setMotorPowers(MotorHelper().setPower(1, j ).setPower(0, j ).setPower(2, j ).setPower(3, j ).finish()); 
+//      msp.setMotorPowers(MotorHelper().setPower(2, j ).setPower(3, j).finish()); 
+      usleep(1000000); 
+      auto buf = msp.askMSP(); 
+      printf("N%i seq %04x motor protection  ", iteration, buf.seqno);
+      for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.hardwareProtectionCounters[j]); 
+      printf("ENC  ");
+      for (int j = 0; j < 4; ++j)  printf("%04x  ", buf.encoders[j]); 
+      printf("  ADC  "); 
+      for (int j = 0; j < 11; ++j) printf("%04x  ", buf.rawAnalogValues[j]); 
+      printf("\n"); 
     } 
-    #endif
+#endif
   }
     return 0; 
-}
+} 
+catch (runtime_error e) { fprintf(stderr, "runtime_error(%s)\n", e.what()); }
+catch (libusb_exception e) { fprintf(stderr, "libusb_exception %i %s\n", e.error, libusb_strerror(static_cast<libusb_error>(e.error))); } 
+
 
