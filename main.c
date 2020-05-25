@@ -71,10 +71,16 @@ volatile uint8_t dataReceivedEvent = FALSE;  // Flag set by event handler to
 struct OutBuffer*  usbOutBuffer = (struct OutBuffer*)&pbXBufferAddressEp81;
 volatile struct OutBuffer  theOutBuffer;
 
+#ifdef __MSP430F5510
+#define ADC_VECTOR ADC10_VECTOR
+#define __disable_adc_int { ADC10IE = 0; _no_operation(); }
+#define __enable_adc_int { ADC10IE = 1; _no_operation(); }
+#define __adc_overflow_happened (ADC10IFG & ADC10OVIFG)
+
 // this one points into theOutBuffer.adcBuffer
 volatile uint16_t* adcBufferOffset;
 void initAdc() { 
-  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_2);
+  bool status = ADC10_A_init(ADC10_A_BASE, ADC10_A_SAMPLEHOLDSOURCE_SC, ADC10_A_CLOCKSOURCE_ADC10OSC, ADC10_A_CLOCKDIVIDER_4);
   ADC10_A_setupSamplingTimer(ADC10_A_BASE, ADC10_A_CYCLEHOLD_16_CYCLES, ADC10_A_MULTIPLESAMPLESENABLE);
   ADC10_A_configureMemory(ADC10_A_BASE, ADC_CHANNELS_SAMPLED - 1, ADC10_A_VREFPOS_AVCC, ADC10_A_VREFNEG_AVSS); // why is it called configure **Memory** ? 
   ADC10_A_disableReferenceBurst(ADC10_A_BASE); 
@@ -83,7 +89,39 @@ void initAdc() {
   ADC10_A_enable(ADC10_A_BASE); 
   ADC10_A_startConversion(ADC10_A_BASE, ADC10_A_REPEATED_SEQOFCHANNELS); 
 }
+#elif defined(__MSP430F5528)
+// ADC12 on the 5528 may do better than this, TODO !
 
+#define ADC_VECTOR ADC12_VECTOR 
+#define __disable_adc_int { ADC12IE = 0; _no_operation(); }
+#define __enable_adc_int { ADC12IE = ((((uint32_t)1) << ADC_CHANNELS_SAMPLED) - 1); _no_operation(); }
+#define __adc_overflow_happened (0)  // TODO: no easy way to check this for ADC12! must catch the actual interrupt ! 
+
+// this one points into theOutBuffer.adcBuffer
+volatile uint16_t* adcBufferOffset;
+volatile uint16_t* adcSourceOffset; 
+void initAdc() { 
+  bool status = ADC12_A_init(ADC12_A_BASE, ADC12_A_SAMPLEHOLDSOURCE_SC, ADC12_A_CLOCKSOURCE_ADC12OSC, ADC12_A_CLOCKDIVIDER_4);
+  ADC12_A_setupSamplingTimer(ADC12_A_BASE, ADC12_A_CYCLEHOLD_16_CYCLES, ADC12_A_CYCLEHOLD_16_CYCLES, ADC12_A_MULTIPLESAMPLESENABLE);
+  uint8_t i;
+  for (i = 0; i < 6; ++i) { 
+    ADC12_A_configureMemoryParam c = { i, 5 - i , ADC12_A_VREFPOS_AVCC, ADC12_A_VREFNEG_AVSS, ((ADC_CHANNELS_SAMPLED == i + 1) ? ADC12_A_ENDOFSEQUENCE : ADC12_A_NOTENDOFSEQUENCE)};
+    ADC12_A_configureMemory(ADC12_A_BASE, &c); 
+  }
+  for (i = 6; i < ADC_CHANNELS_SAMPLED; ++i) { 
+    ADC12_A_configureMemoryParam c = { i, i, ADC12_A_VREFPOS_AVCC, ADC12_A_VREFNEG_AVSS, ((ADC_CHANNELS_SAMPLED == i + 1) ? ADC12_A_ENDOFSEQUENCE : ADC12_A_NOTENDOFSEQUENCE)};
+    ADC12_A_configureMemory(ADC12_A_BASE, &c); 
+  }
+  ADC12_A_disableReferenceBurst(ADC12_A_BASE); 
+  adcBufferOffset= theOutBuffer.adcBuffer;
+  adcSourceOffset= &ADC12MEM0; 
+  ADC12_A_enableInterrupt(ADC12_A_BASE, (((uint32_t)1) << ADC_CHANNELS_SAMPLED) - 1); 
+  ADC12_A_enable(ADC12_A_BASE); 
+  ADC12_A_startConversion(ADC12_A_BASE, ADC12_A_MEMORY_0, ADC12_A_REPEATED_SEQOFCHANNELS); 
+}
+#else
+#error "This in neither 5510 nor 5528, enable ADC support for it expclicitly (depends of the ADC type)"
+#endif
 
 uint8_t Ep1InEvent() { 
 #ifdef OLIMEXINO_5510
@@ -143,23 +181,15 @@ void main (void)
             case ST_ENUM_ACTIVE:
                 if (!initCalled) { 
                     int j;
-		    for (j = 0; j < 10000; ++j) _no_operation(); 
-
 			// We manually configure endpoints 0x01, 0x81 (first endpoint for out and in)
-		    USBIEPCNF_1 &= ~EPCNF_DBUF; // this hack is to ensure that we do NOT use double buffering to send data to the host
-		    USBIEPCNF_1 &= ~EPCNF_TOGGLE;
-		    USBIEPCNF_1  |= EPCNF_USBIE; 
 		    USBIEPBBAX_1 = (((uint16_t)usbOutBuffer) - START_OF_USB_BUFFER) >> 3;
+		    USBIEPCNF_1  = UBME | EPCNF_USBIE; // single buffer, start with toggle = 0 
 		    memset(usbOutBuffer, 0, sizeof(struct OutBuffer)); 
-		    USBIEPBCTX_1 = sizeof(struct OutBuffer); // allow to send the first 64 bytes from the X buffer 
-		    // an interrupt will be generated after the send completes, the interrupt handler will 
-		    // reenable the send operation again and so on 
-		    USBOEPCNF_1 &= ~EPCNF_DBUF;
-		    USBOEPCNF_1 &= ~EPCNF_TOGGLE; // wow I must reset this bit manually or else the first DATA0 packet is lost!
 		    USBOEPBBAX_1 =  (OEP1_X_BUFFER_ADDRESS - START_OF_USB_BUFFER) >> 3; 
-		    USBOEPCNF_1 |=  EPCNF_USBIE; 
+		    USBOEPCNF_1 = UBME | EPCNF_USBIE; // same as for IEP
 		    USBOEPBCTX_1 = 0; // clears the NAK bit, all other zeroes are irrelevant
 		    initCalled = 1; 
+		    __delay_cycles(200000); 
 			memset(&theOutBuffer, 0, sizeof(struct OutBuffer)); 
 			initAdc(); 
 			initPowerMotor();
@@ -182,21 +212,19 @@ void main (void)
 		    // with usbOutBuffer->adcBuffer
 		    int i;
 		    for (i = 0; i < (ADC_CHANNELS_SAMPLED & ~1); i+=2) {
-		      ADC10IE = 0;
-		      _no_operation();
+		      __disable_adc_int;
 		      usbOutBuffer->adcBuffer[i] = theOutBuffer.adcBuffer[i];
 		      usbOutBuffer->adcBuffer[i+1] = theOutBuffer.adcBuffer[i+1];
-		      ADC10IE = 1;
+		      __enable_adc_int;
 		    }
 		    _no_operation();
-		    ADC10IE = 0;
-		    _no_operation();
+		    __disable_adc_int;
 		    if (ADC_CHANNELS_SAMPLED & 1) 
 		      usbOutBuffer->adcBuffer[ADC_CHANNELS_SAMPLED-1] = 
 		      		theOutBuffer.adcBuffer[ADC_CHANNELS_SAMPLED-1];
 		    usbOutBuffer->seqno = theOutBuffer.seqno;
-		    ADC10IE = 1;
-  	            if (ADC10IFG & ADC10OVIFG) {
+		    __enable_adc_int;
+  	            if (__adc_overflow_happened) {
                         usbOutBuffer->adcOverflowHappened = 1; 
                     }
 		    uint16_t const saveInts = PAIE;
@@ -255,18 +283,26 @@ void main (void)
     }  //while(1)
 }                               // main()
 
-// TODO: a bug exist here: the adc buffer seems to be circular shifted by 2 positions, but why?
 #if defined(__TI_COMPILER_VERSION__) || (__IAR_SYSTEMS_ICC__)
-#pragma vector = ADC10_VECTOR
+#pragma vector = ADC_VECTOR
 __interrupt void ADC_ISR (void)
 #else 
-void __attribute__ ((interrupt(ADC10_VECTOR))) ADC_ISR (void)
+void __attribute__ ((interrupt(ADC_VECTOR))) ADC_ISR (void)
 #endif
 {
+#ifdef __MSP430F5510
   *(adcBufferOffset) = ADC10MEM0;
+#elif defined(__MSP430F5528)
+  *(adcBufferOffset) = *adcSourceOffset; 
+  ++adcSourceOffset;
+#else "what ADC does this MSP have?"
+#endif
   ++adcBufferOffset;
   if (adcBufferOffset == &(theOutBuffer.adcOverflowHappened)) {
       adcBufferOffset = (theOutBuffer.adcBuffer);         
+#ifdef __MSP430F5528
+      adcSourceOffset = &ADC12MEM0; 
+#endif
       ++(theOutBuffer.seqno);
   }
 #if 0 // OLIMEXINO_5510
