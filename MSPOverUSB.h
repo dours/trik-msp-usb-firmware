@@ -13,7 +13,7 @@ struct libusb_exception {
 // This is a packet of all sensor values from the MSP
 // You can ask the MSP for the whole packet only, not for particular specific sensor values 
 struct RawSensorValues {
-  // raw values for analog ports A1-A6 are at indexes 0-5 of the returned array
+  // raw values for analog ports A1-A6 are at indexes 0-5 of this array
   const std::array<uint16_t, ADC_CHANNELS_SAMPLED> rawAnalogValues;
   // all the analog ports are sampled (once per port) then this counter is incremented
   // and the sampling restarts
@@ -29,7 +29,8 @@ struct RawSensorValues {
   uint16_t getRawLCDyP() const { return rawAnalogValues[9]; } 
 
 };
- 
+
+// maybe this class could simplify calling MSPOverUSB::setMotorPowers
 class MotorHelper { 
   std::array<std::pair<bool, int8_t>, N_POWER_MOTOR> theArray;
 public:
@@ -48,6 +49,11 @@ class MSPOverUSB {
   MSPOverUSB(MSPOverUSB const &) = delete;
   MSPOverUSB& operator = (MSPOverUSB const&) = delete; 
 
+  bool log; 
+
+  // what type of ADC block do we have ? 
+  bool adc10, adc12; 
+
   libusb_context* usbContext;
   libusb_device_handle* mspHandle; 
   struct OutBuffer recv; 
@@ -63,13 +69,15 @@ public:
     return instance;
   }
 
+  // synchronously read new values from the MSP
   RawSensorValues askMSP();
 
   // request new values and then clear some of the counters
-  // then indexes of counters to clear are given in [encoders], [hwps]
+  // the indexes of counters to clear are given in [encoders], [hwps]
   RawSensorValues askMSPAndResetCounters(vector<int> const& encoders, vector<int> const& hwps);
 
-
+  // accepts a packet of requests to change power for some of the motors
+  // synchronously sends it as one USB packet to the MSP 
   void setMotorPowers(std::array<std::pair<bool, int8_t>, N_POWER_MOTOR> const& ); 
 
 };
