@@ -1,3 +1,19 @@
+
+/* Copyright 2020 Oleg Medvedev and CyberTech Labs Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. */
+
+
 #include "hostMotor.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,6 +31,7 @@ MemoryCommands setPeriod(uint16_t period){
 	// I don't know why we must always set period to such a high value. 
 	// Our "standard" motors tend to vibrate on this setting of PWM 
 	// maybe the driver goes too hot under the max 2.5A load at this high frequency?
+	// Well, no, I haven't noticed this with a 4ohm load 
 		valueToSet = 65000;
 //		valueToSet = 10000; 
 	}
@@ -35,6 +52,8 @@ MemoryCommands setPeriod(uint16_t period){
 	return MemoryCommands(v);
 }
 
+
+// This is moved with minimal changes from the original power_motor.c (of the I2C version)
   vector<tmemoryCommand> MSPMotor::mkSetDutyPercent(int percent) const {
     uint16_t valueToSet;
     uint16_t clearMask;

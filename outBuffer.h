@@ -1,16 +1,25 @@
+/* Copyright 2020 Oleg Medvedev and CyberTech Labs Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. */
+
+
+
+
 #ifndef OUT_BUFFER_H
 #define OUT_BUFFER_H
 
-// This file declares a structure of the output buffer 
-// The structure is mapped directly onto the output buffer X
-// of the USB IN Endpoint 1.
-// This means that 
-// 1. if a host reads this USB device then it always gets a packet
-//    with current values of the structure
-// 2. all writes to the structure must be atomic, because 
-//    the host access is not synchronized 
-//    (TODO: It could be though -- by setting the NAK bit before
-// each access and clearing it afterwards. Maybe this is reasonable)
+// This file declares a structure of the output buffer.
+// Each time a host asks us, we send a buffer back through endpoint 1
 
 #include <stdint.h>
 

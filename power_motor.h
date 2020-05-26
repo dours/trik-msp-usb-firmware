@@ -1,3 +1,19 @@
+/* Copyright 2020 CyberTech Labs Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. */
+
+
+
 /*
  * power_motor.hpp
  *
@@ -9,20 +25,6 @@
 #define POWER_MOTOR_HPP_
 #include <stdint.h>
 
-struct PwmMotor{
-        uint16_t period;
-        int8_t percent;
-        uint16_t hardwareDefence;
-};
-
 int initPowerMotor();
-
-int setPeriod(uint16_t period);
-int setDutyPercent(uint8_t number,int8_t percent);
-int setAllMotors(uint8_t *data);
-
 void encoderInit();
-void resetEncoder(const uint8_t number);
-uint32_t getEncoderValue(const uint8_t number);
-uint16_t 	getHardwareDefence(const uint8_t number);
 #endif /* POWER_MOTOR_HPP_ */

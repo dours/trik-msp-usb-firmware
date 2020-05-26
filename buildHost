@@ -1,2 +1,3 @@
+# not enough files for a proper Makefile, I think 
 $CXX -shared -fPIC -std=c++11 -I libusb-1.0 -o libMSPOverUSB.so MSPOverUSB.cpp MemoryCommand.cpp hostMotor.cpp 
 $CXX -o testbulk -I libusb-1.0 testbulk.cpp  -lusb-1.0 -L . -lMSPOverUSB 

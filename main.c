@@ -1,4 +1,5 @@
-/* --COPYRIGHT--,BSD
+/* Copyright for the base example:
+ * --COPYRIGHT--,BSD
  * Copyright (c) 2016, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -29,19 +30,23 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * --/COPYRIGHT--*/
-/*  
- * ======== main.c ========
- * Local Echo Demo:
+
+/* Copyright (for the changes to the base example) 2020 Oleg Medvedev and CyberTech Labs Ltd.
  *
- * This example simply echoes back characters it receives from the host.  
- * Unless the terminal application has a built-in echo feature turned on, 
- * typing characters into it only causes them to be sent; not displayed locally.
- * This application causes typing in Hyperterminal to feel like typing into any 
- * other PC application ? characters get displayed.  
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * ----------------------------------------------------------------------------+
- * Please refer to the Examples Guide for more details.
- * ---------------------------------------------------------------------------*/
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. */
+
+
+
 #include <string.h>
 
 #include "driverlib.h"
